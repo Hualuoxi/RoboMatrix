@@ -51,73 +51,82 @@ public:
     {
         debug = _debug;
     };
+    //是否读取完所有数据
+    bool dealLineData(string tmp_line)
+    {
+        if(debug) cout<< i <<"\n"; i=i+1;
+        if(tmp_line.data()[0] != '(' ) //
+        {
+            if(num == 1) servers_num = stoi(tmp_line);
+            if(num == 2) vms_num = stoi(tmp_line);
+            if(num == 3) {
+                day_num = stoi(tmp_line);
+                requests_all = new vector<DayRequestData>(day_num);
+            }
+            if(num > 3 ) 
+            {
+                everyday_num.push_back( stoi(tmp_line) );
+                day_tmp++;
+            }
+            num+=1;
+            if(debug) cout<<"num:  "<<stoi(tmp_line) <<"\n";
+            return false;
+        }
+        else
+        {
+            p = tmp_line.begin();
+            tmp_line.erase(p);  
+            p = tmp_line.end(); p--;
+            tmp_line.erase(p); 
+            stringstream words(tmp_line);
+            string tep_word;
+            if(debug) cout <<"line:  " <<tmp_line <<endl;
+            ser_tmp = 5; vm_tmp = 4;req_tmp=3;
+            while(getline(words, tep_word, ','))//以,为分隔符，读取数据
+            {
+                if(num == 2) serversDeal(tep_word);
+                if(num == 3) vmsDeal(tep_word);
+                if(num>3)  requestsDeal(tep_word);
+            }
+
+            if(num ==2) 
+            {
+                servers[servers_data.server_type] = servers_data;
+            }
+            if(num == 3)
+            {
+                // pair<string,VMData>tmp (vms_data.vm_type,vms_data);
+                // vms.insert(tmp);
+                vms[vms_data.vm_type] = vms_data;
+            }
+            
+            if(day_tmp>0 )
+            {
+                if(everyday_num.at(day_tmp-1) != 0)  //当天请求数据不为0
+                    requests_all->at(day_tmp-1).day_request.push_back(req_data);
+                //当读到最后一天的最后一条数据  返回真
+                if(day_tmp == day_num && requests_all->back().day_request.size() == everyday_num.back()) 
+                    return true;
+            }
+
+            if(debug) cout<<"\n";
+            return false;
+        }
+    }
+
     //~DataHandling();
     bool openFile(char *filePath)
     {
         ifstream infile(filePath,std::ios::in);
         string tmp_line;
-        string::iterator  p ; //迭代器p
+        
         cout <<"path: " <<filePath << "\n";
-        int i=1;
-        int num=1; day_tmp = 0;
+        
         if (!infile.fail())
         {          
             while(getline(infile, tmp_line ) && !infile.eof())  //逐行读取
             {
-                if(debug) cout << i <<"\n"; i=i+1;
-                if(tmp_line.data()[0] != '(' ) //
-                {
-                    
-                    if(num == 1) servers_num = stoi(tmp_line);
-                    if(num == 2) vms_num = stoi(tmp_line);
-                    if(num == 3) {
-                        day_num = stoi(tmp_line);
-                        requests_all = new vector<DayRequestData>(day_num);
-                    }
-                    if(num > 3 ) 
-                    {
-                        everyday_num.push_back( stoi(tmp_line) );
-                        day_tmp++;
-                    }
-                    num+=1;
-                    if(debug) cout<<"num:  "<<stoi(tmp_line) <<"\n";
-                }
-                else
-                {
-                    p = tmp_line.begin();
-                    tmp_line.erase(p);  //cout << tmp_line << endl;
-                    p = tmp_line.end(); p--;
-                    tmp_line.erase(p); //cout << tmp_line << endl;
-                    stringstream words(tmp_line);
-                    string tep_word;
-                    if(debug) cout <<"line:  " <<tmp_line <<endl;
-                    ser_tmp = 5; vm_tmp = 4;req_tmp=3;
-                    while(getline(words, tep_word, ','))//以,为分隔符，读取数据
-                    {
-                       // cout << tep_word << "\t";
-                        if(num == 2) serversDeal(tep_word);
-                        if(num == 3) vmsDeal(tep_word);
-                        if(num>3)  requestsDeal(tep_word);
-                    }
-
-                    if(num ==2) 
-                    {
-                        pair<string,ServersData>tmp (servers_data.server_type,servers_data);
-                        servers.insert(tmp );
-                    }
-                    if(num == 3)
-                    {
-                        pair<string,VMData>tmp (vms_data.vm_type,vms_data);
-                        vms.insert(tmp);
-                    }
-                    
-                    if(day_tmp>0 )
-                    {
-                        requests_all->at(day_tmp-1).day_request.push_back(req_data);
-                    }
-
-                    if(debug) cout<<"\n";
-                }
+                dealLineData(tmp_line);
             }
             cout<<"read over\n";
         }
@@ -130,6 +139,13 @@ public:
         cout<<"close file\n";
         return true;
     }
+
+
+    void stdCout( )
+    {
+
+    }
+
 private:
     int servers_num,vms_num,day_num;
     vector<int> everyday_num;
@@ -137,8 +153,11 @@ private:
     VMData vms_data;
     RequestData req_data;
     int ser_tmp,vm_tmp,req_tmp;
-    int day_tmp;
+    int day_tmp=0;
     bool debug;
+    int i=1;
+    int num=1; 
+    string::iterator  p ; //迭代器p
     void serversDeal(string _word)
     {
          if(ser_tmp == 5){
@@ -172,22 +191,22 @@ private:
     {
         if(vm_tmp == 4){
             vms_data.vm_type = _word;
-            ser_tmp--;
+            vm_tmp--;
             if(debug) cout << vms_data.vm_type<<"  ";
         }
         else if(vm_tmp == 3){
             vms_data.cpu = stoi(_word);
-            ser_tmp--;
+            vm_tmp--;
             if(debug) cout << vms_data.cpu<<"  ";
         }
         else if(vm_tmp == 2){
             vms_data.memory = stoi(_word);
-            ser_tmp--;
+            vm_tmp--;
             if(debug) cout << vms_data.memory<<"  ";
         }
          else if(vm_tmp == 1){
             vms_data.single = stoi(_word);
-            ser_tmp--;
+            vm_tmp--;
             if(debug) cout << vms_data.single<<"  ";
         }
     }
@@ -203,6 +222,7 @@ private:
         {
             if(req_data.req == "add")
             {
+                _word.erase(0,_word.find_first_not_of(" "));  //去年首部空格
                 req_data.vm_type = _word;
                 req_tmp--;
                if(debug)  cout<<"type: " << req_data.vm_type<<"...";
@@ -219,6 +239,7 @@ private:
             if(debug) cout <<"id: "<< req_data.id <<"...";
         }
     }
+    
 };
 
 

@@ -9,20 +9,48 @@ int main(int argc, char **argv)
 	// TODO:fflush(stdout);
 
 	DataHandling *data_handling = new DataHandling(false);
-	data_handling->openFile("SDK/SDK_C++/CodeCraft-2021/training-1.txt");
+	// data_handling->openFile("training-1.txt");
 
-	
-	cout << data_handling->servers.at("hostGCX19").hardware_cost << "  \n";
-	cout << data_handling->requests_all->size()<<"  \n";
+	//读取所有数据
+	string str_line;
+	while(getline(cin,str_line))
+	{
+		//cout<<"str_line.length: "<< str_line.length()<<endl;
+		if(str_line.length() > 0)
+			if(data_handling->dealLineData(str_line))
+				break;
+	}
+
+	int id =0;
+	//cout << "\n";
+	//每天的输出信息
 	for(int i=0; i < data_handling->requests_all->size();i++)
 	{
+		//购买型号的数量
+		cout << "(purchase, "<< 1 <<")\n";  
+		//型号及其对应购买数量
+		cout << "(hostGCX19, "<< data_handling->requests_all->at(i).day_request.size() <<")\n";
+		//迁移数量
+		cout << "(migration, " <<0 << ")\n";
+
 		for(int j=0;j<data_handling->requests_all->at(i).day_request.size();j++)
 		{
-			cout<<data_handling->requests_all->at(i).day_request.at(j).id <<"\n";
+			if(data_handling->requests_all->at(i).day_request.at(j).req == "add")
+			{
+				//单节点
+				if(data_handling->vms.at( data_handling->requests_all->at(i).day_request.at(j).vm_type ).single ==1 )
+				{
+					cout <<"("<<j<<", A)\n";  //A or B
+				}
+				else
+				{
+					cout <<"("<<j<<")\n";
+				}
+			}
+			
 		}
-		cout<<"\n";
+		//cout<<"\n";
 	}
-	cout <<"finished\n";
 
 	return 0;
 }
