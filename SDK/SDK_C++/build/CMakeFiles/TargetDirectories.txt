@@ -1,0 +1,3 @@
+/home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/build/CMakeFiles/rebuild_cache.dir
+/home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/build/CMakeFiles/edit_cache.dir
+/home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/build/CMakeFiles/CodeCraft-2021.dir
