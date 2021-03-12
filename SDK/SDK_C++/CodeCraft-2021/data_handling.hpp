@@ -25,7 +25,7 @@ struct VMData
     string vm_type; 
     int cpu;   //cpu数
     int memory; // 内存大小
-    int single;  //是否为单节点  0  1
+    int node;  //单节点   0  双节点 1
 };
 //单个请求数据
 struct RequestData  
@@ -205,9 +205,9 @@ private:
             if(debug) cout << vms_data.memory<<"  ";
         }
          else if(vm_tmp == 1){
-            vms_data.single = stoi(_word);
+            vms_data.node = stoi(_word);
             vm_tmp--;
-            if(debug) cout << vms_data.single<<"  ";
+            if(debug) cout << vms_data.node<<"  ";
         }
     }
 

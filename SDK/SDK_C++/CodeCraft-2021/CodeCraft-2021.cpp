@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 			if(data_handling->requests_all->at(i).day_request.at(j).req == "add")
 			{
 				//单节点
-				if(data_handling->vms.at( data_handling->requests_all->at(i).day_request.at(j).vm_type ).single ==1 )
+				if(data_handling->vms.at( data_handling->requests_all->at(i).day_request.at(j).vm_type ).node ==0 )
 				{
 					cout <<"("<<j<<", A)\n";  //A or B
 				}
