@@ -129,7 +129,7 @@ public:
         ifstream infile(filePath,std::ios::in);
         string tmp_line;
         
-        cout <<"path: " <<filePath << "\n";
+        // cout <<"path: " <<filePath << "\n";
         
         if (!infile.fail())
         {          
@@ -137,7 +137,7 @@ public:
             {
                 dealLineData(tmp_line);
             }
-            cout<<"read over\n";
+            // cout<<"read over\n";
         }
         else
         {
@@ -145,7 +145,7 @@ public:
         }
         
         infile.close();
-        cout<<"close file\n";
+        // cout<<"close file\n";
         return true;
     }
 
