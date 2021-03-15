@@ -1,1 +1,1 @@
-/usr/bin/c++   -O3 -Wall -std=c++11  -rdynamic CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o  -o /home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/bin/CodeCraft-2021 
+/usr/bin/c++   -O3 -Wall -std=c++11  -rdynamic CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o  -o /home/weilang/my_programs/hua_wei_con_21/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021 

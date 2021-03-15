@@ -7,7 +7,7 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/CodeCraft-2021/CMakeLists.txt"
+  "/home/weilang/my_programs/hua_wei_con_21/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/CMakeLists.txt"
   "CMakeFiles/3.16.3/CMakeCCompiler.cmake"
   "CMakeFiles/3.16.3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.16.3/CMakeSystem.cmake"

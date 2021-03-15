@@ -6,5 +6,5 @@ CXX_FLAGS =  -O3 -Wall -std=c++11
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/xu/Desktop/华为软件挑战赛/程序/SDK/SDK_C++/CodeCraft-2021/lib 
+CXX_INCLUDES = -I/home/weilang/my_programs/hua_wei_con_21/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/lib 
 

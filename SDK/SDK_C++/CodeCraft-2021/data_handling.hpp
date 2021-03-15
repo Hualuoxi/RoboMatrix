@@ -25,7 +25,7 @@ struct VMData
     string vm_type; 
     int cpu;   //cpu数
     int memory; // 内存大小
-    int node;  //单节点   0  双节点 1
+    int node;  //单节点 0  双节点 1
 };
 //单个请求数据
 struct RequestData  
@@ -37,7 +37,9 @@ struct RequestData
 //一天的请求数据  
 struct DayRequestData
 {
-    vector<RequestData> day_request;
+    vector<RequestData> day_request;  //所有数据  顺序存储
+	vector<RequestData> add_req;     //当天所有增加请求
+	vector<RequestData> del_req;    //当天所有删除请求
 };
 
 
@@ -100,10 +102,17 @@ public:
                 vms[vms_data.vm_type] = vms_data;
             }
             
-            if(day_tmp>0 )
-            {
-                if(everyday_num.at(day_tmp-1) != 0)  //当天请求数据不为0
-                    requests_all->at(day_tmp-1).day_request.push_back(req_data);
+			if (day_tmp > 0)
+			{
+				if (everyday_num.at(day_tmp - 1) != 0)  //当天请求数据不为0
+				{
+					requests_all->at(day_tmp - 1).day_request.push_back(req_data);
+					if (req_data.req == "add")
+						requests_all->at(day_tmp - 1).add_req.push_back(req_data);
+					else
+						requests_all->at(day_tmp - 1).del_req.push_back(req_data);
+				}
+				
                 //当读到最后一天的最后一条数据  返回真
                 if(day_tmp == day_num && requests_all->back().day_request.size() == everyday_num.back()) 
                     return true;
