@@ -9,7 +9,7 @@
 struct OwnServer
 {
 	int id;    //记录当前服务器id  从0开始计数
-	int day_num;  //运行天数
+	int day_num;  //运行天数  todo
 	ServersData ser;   //服务器类型
 	int cpu_A_left;    //A节点剩余的cpu
 	int memory_A_left; //A节点剩余的memory
@@ -89,8 +89,8 @@ struct OwnServer
 //购买单个服务器的数据
 struct PurSerData
 {
-	string type;  
-	int num; 
+	string type;   //类型
+	int num;     //数量
 }; 
 
 //虚拟机与对应的服务器
@@ -99,6 +99,9 @@ struct VM2Server
 	VMData vm;    //虚拟机类型
 	OwnServer *own_ser;  //指向的服务器
 	int a_b;   //-1 双节点    0 放在a节点  1 b节点  
+	bool dealed; //是否加入了服务器
+	vector<VM2Server*> matchs_k; //匹配的型号 cpu_mem 按匹配度排序
+	bool matched;  //是否匹配过
 };
 
 //拥有的所有服务器
@@ -142,17 +145,15 @@ struct AllServers
 };
 
 
-
-
 class Strategy
 {
 public:
 	Strategy(DataHandling *_data_hand) 
 	{ 
 		data_hand = _data_hand; 
+		max_cpu_ser.cpu = max_mem_ser.memory = 0;
 		for (auto it = _data_hand->servers.begin(); it != _data_hand->servers.end(); ++it)
 		{
-			//cout << it->first << endl;
 			if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				max_cpu_ser = _data_hand->servers.at(it->first);
 			if (max_mem_ser.memory < _data_hand->servers.at(it->first).memory)
@@ -167,42 +168,188 @@ public:
 
 	void dealDayReq(DayRequestData *dat_req ,int _day_id)
 	{
+		max_cpu =max_mem= 0;
+		//先将请求数据转换  转换为VM2Server格式
+		for(int i = 0; i < dat_req->add_req.size(); i++)
+		{
+			vms_ser[dat_req->add_req.at(i).id].dealed = false;
+			vms_ser[dat_req->add_req.at(i).id].matched = false;
+			vms_ser[dat_req->add_req.at(i).id].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
+			if(max_cpu < data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
+				max_cpu = data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
+			if (max_mem < data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
+				max_mem = data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
+		}
+		//先将虚拟机放入已有服务器
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
-			addVm(dat_req->add_req.at(i), _day_id);
+			addVm2Ser(&vms_ser[dat_req->add_req.at(i).id],false, _day_id);
 		}
+		day_ser_select = max_cpu_ser;
+		//选择服务器
+		//selectSer(dat_req);
+		//查找与每天相匹配的型号 
+		findMatchsDay(dat_req);
+
+		vector<VM2Server*> vms_node0;  //储存单节点  
+		//先处理双节点
+		for (int i = 0; i < dat_req->add_req.size(); i++)
+		{
+			if (vms_ser[dat_req->add_req.at(i).id].dealed == false)
+			{
+				if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
+					addMatchVms2ser(&vms_ser[dat_req->add_req.at(i).id], _day_id);
+				else
+					vms_node0.push_back(&vms_ser[dat_req->add_req.at(i).id]);
+			}
+		}
+		//处理单节点
+		for (int j = 0; j < vms_node0.size(); j++)
+		{
+			addMatchVms2ser(vms_node0.at(j), _day_id);
+		}
+		
+		//处理删除请求
 		for (int i = 0; i < dat_req->del_req.size(); i++)
 		{
 			delVm(dat_req->del_req.at(i));
 		}
+	}
 
+	//根据每天没有处理过的虚拟机数据总和 选择服务器
+	void selectSer(DayRequestData *dat_req)
+	{
+		float cpu_sum=0, mem_sum=0,cpu_mem,dk,d_val;
+		string _type;
+		for (int i = 0; i < dat_req->add_req.size(); i++)
+		{
+			if (vms_ser.at(dat_req->add_req.at(i).id).dealed == false)
+			{
+				cpu_sum += vms_ser.at(dat_req->add_req.at(i).id).vm.cpu;
+				mem_sum += vms_ser.at(dat_req->add_req.at(i).id).vm.memory;
+			}
+		}
+		cpu_mem = cpu_sum / mem_sum;
+		dk = abs(max_cpu_ser.cpu / max_cpu_ser.memory - cpu_mem);  //
+		_type = max_cpu_ser.server_type;
+		//查找最小差值
+		for (auto it = data_hand->servers.begin(); it != data_hand->servers.end(); ++it)
+		{
+			d_val = abs(data_hand->servers.at(it->first).cpu / data_hand->servers.at(it->first).memory - cpu_mem);
+			if (dk > d_val)
+			{
+				//申请的型号需要满足cpu与mem都大于当前申请的最大值
+				if (data_hand->servers.at(it->first).cpu >= max_cpu && data_hand->servers.at(it->first).memory >= max_mem)
+				{
+					dk = d_val;
+					_type = data_hand->servers.at(it->first).server_type;
+				}
+			}
+		}
+		day_ser_select = data_hand->servers.at(_type);
+	}
+
+	//查找与每天相匹配的型号 
+	//cpu/mem是否与服务器的匹配  或者几个vm的和的cpu/mem与服务器匹配
+	void findMatchsDay(DayRequestData *dat_req)
+	{
+		float _day_k = day_ser_select.cpu / day_ser_select.memory;
+		int id,id_left;
+		for (int i = 0; i < dat_req->add_req.size(); i++)
+		{
+			id = dat_req->add_req.at(i).id;
+			if (vms_ser.at(id).dealed == false && vms_ser.at(id).matched == false) //未加入服务器 并且未匹配
+			{
+				float cpu_mem = vms_ser.at(id).vm.cpu / vms_ser.at(id).vm.memory;
+				//该型号与服务器分布相似
+				if (abs(cpu_mem - _day_k) < 0.1)
+				{
+					vms_ser.at(id).matched = true;
+					continue; //不查找匹配型号
+				}
+				for (int j = 0; j < dat_req->add_req.size(); j++)
+				{
+					id_left = dat_req->add_req.at(j).id;
+					//不是本身  未加入服务器 并且未匹配 并且节点类型相同
+					if (id != id_left && vms_ser.at(id_left).dealed == false && vms_ser.at(id_left).matched == false && vms_ser.at(id).vm.node == vms_ser.at(id_left).vm.node)  
+					{
+						//先只考虑两个组合
+						float k = (vms_ser.at(id).vm.cpu + vms_ser.at(id_left).vm.cpu) / (vms_ser.at(id).vm.memory + vms_ser.at(id_left).vm.memory);
+						if (abs(k - _day_k) < 0.1)
+						{
+							vms_ser.at(id).matchs_k.push_back(&vms_ser.at(id_left));  //互相放入对方列表
+							vms_ser.at(id_left).matchs_k.push_back(&vms_ser.at(id));
+							vms_ser.at(id_left).matched = true;
+							vms_ser.at(id).matched = true;
+							break;
+						}
+					}
+				}
+			}
+		}
 	}
 
 
-	//添加虚拟机 及 放置到对应服务器
-	void addVm(RequestData _req ,int _day_id)
+	//添加虚拟机到服务器 add_new_ser:如果没有空间，是否申请新服务器
+	void addVm2Ser(VM2Server *_vm2ser,bool add_new_ser, int _day_id)
 	{
 		bool inset_success = false;
 		
 		//判断使用中服务器中是否有空闲位置
-		for (auto it = own_ser.using_ser.begin(); it != own_ser.using_ser.end(); it++)
+		for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
 		{
-			inset_success = it->insertVM( data_hand->vms.at(_req.vm_type), &vms_ser[_req.id].a_b);
+			inset_success = it->insertVM( _vm2ser->vm, &_vm2ser->a_b);
 			if (inset_success)
 			{
-				vms_ser[_req.id].own_ser = &*it;
+				_vm2ser->own_ser = &*it;
+				_vm2ser->dealed = true;
 				break;
 			}
 		}
+		if (!add_new_ser) return;
 
 		if (!inset_success)  //没有成功加入虚拟机  空间不足  申请新的服务器
 		{
-			own_ser.addSer(max_cpu_ser , _day_id);  //先只考虑一种
-			own_ser.using_ser.back().insertVM(data_hand->vms.at(_req.vm_type) , &vms_ser[_req.id].a_b);
-			vms_ser[_req.id].own_ser = &own_ser.using_ser.back();            
+			bool inset_success2 = false;
+			own_sers.addSer(day_ser_select, _day_id);  //添加服务器
+			inset_success2 = own_sers.using_ser.back().insertVM(_vm2ser->vm, &_vm2ser->a_b);
+			_vm2ser->own_ser = &own_sers.using_ser.back();
+			_vm2ser->dealed = true;
 		}
-		vms_ser[_req.id].vm = data_hand->vms.at(_req.vm_type);
+	}
+	//将虚拟机添加到尾部服务器
+	void addVmsSerBack(VM2Server *_vm2ser, int _day_id)
+	{
+		bool inset_success = false;
+		inset_success = own_sers.using_ser.back().insertVM(_vm2ser->vm, &_vm2ser->a_b);
+		if (inset_success)
+		{
+			_vm2ser->own_ser = &own_sers.using_ser.back();
+			_vm2ser->dealed = true;
+		}
+		else
+		{
+			own_sers.addSer(day_ser_select, _day_id);  //添加服务器
+			own_sers.using_ser.back().insertVM(_vm2ser->vm, &_vm2ser->a_b);
+			_vm2ser->own_ser = &own_sers.using_ser.back();
+			_vm2ser->dealed = true;
+		}
+	}
 
+	//同时添加匹配的虚拟机到已有服务器  没有空间则申请新的服务器
+	void addMatchVms2ser(VM2Server *_vm2ser,int _day_id)
+	{
+		if (_vm2ser->dealed == true) return;  //如果已经处理过
+
+		addVm2Ser(_vm2ser, true, _day_id);
+		if (_vm2ser->matchs_k.size() != 0)  //有匹配项 
+		{
+			if (_vm2ser->matchs_k.at(0)->dealed == false) //并且未处理
+			{
+				//addVm2Ser(_vm2ser->matchs_k.at(0), true, _day_id);
+				addVmsSerBack(_vm2ser->matchs_k.at(0), _day_id);
+			}
+		}
 	}
 
 	//删除虚拟机
@@ -212,18 +359,19 @@ public:
 		vms_ser.erase(_req.id);
 
 	}
-	
+
+	//输出每日信息
 	void coutDayMsg(int _day_id)
 	{
 		//购买型号的数量
-		if (own_ser.pur_sers.find(_day_id) != own_ser.pur_sers.end())  //如果当天购买不为空
+		if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
 		{
-			cout << "(purchase, " << own_ser.pur_sers.at(_day_id).size() << ")\n";
-			for (auto it = own_ser.pur_sers.at(_day_id).begin(); it != own_ser.pur_sers.at(_day_id).end(); ++it)
+			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
+			for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
 			{
 				//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				//型号及其对应购买数量
-				cout << "(" << own_ser.pur_sers.at(_day_id).at(it->first).type << ", " << own_ser.pur_sers.at(_day_id).at(it->first).num << ")\n";
+				cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
 
 			}
 		}
@@ -235,28 +383,28 @@ public:
 		//迁移数量
 		cout << "(migration, " << 0 << ")\n";
 
-
 		//虚拟机部署到服务器 id和节点。
-		for (int i = 0; i < data_hand->requests_all->at(_day_id).add_req.size(); i++)
+		for (int i = 0; i < data_hand->requests_all->at(_day_id).add_req.size(); i++)  //根据请求id 顺序输出
 		{
-			if (vms_ser.find(data_hand->requests_all->at(_day_id).add_req.at(i).id) != vms_ser.end())
-			{
-				cout << "(" << vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).own_ser->id;
-				if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == -1)
-					cout << ")\n";
-				else if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == 0)
-					cout << ", A)\n";
-				else if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == 1)
-					cout << ", B)\n";
-			}
+			cout << "(" << vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).own_ser->id;
+			if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == -1)
+				cout << ")\n";
+			else if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == 0)
+				cout << ", A)\n";
+			else if (vms_ser.at(data_hand->requests_all->at(_day_id).add_req.at(i).id).a_b == 1)
+				cout << ", B)\n";
 		}
+
 	}
+
 
 private:
 	DataHandling *data_hand;
-	AllServers own_ser;
-    unordered_map<int, VM2Server> vms_ser;    //所有虚拟机及对应服务器
+	AllServers own_sers;                      //拥有的所有服务器
+    unordered_map<int, VM2Server> vms_ser;    //所有虚拟机及对应服务器  <id,对应服务器>
 	ServersData max_cpu_ser, max_mem_ser, min_hardcost_ser;
+	ServersData day_ser_select;    //当天选择的服务器类型
+	int max_cpu, max_mem;  //每天请求中最大cpu与最大mem
 };
 
 
