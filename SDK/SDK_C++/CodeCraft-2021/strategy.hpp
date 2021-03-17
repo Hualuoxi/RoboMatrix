@@ -180,34 +180,67 @@ public:
 			if (max_mem < data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
 				max_mem = data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
 		}
-		//先将虚拟机放入已有服务器
+
+		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
-			addVm2Ser(&vms_ser[dat_req->add_req.at(i).id],false, _day_id);
+			if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
+				vms_node_d.push_back(&vms_ser[dat_req->add_req.at(i).id]);
+			else
+				vms_node_s.push_back(&vms_ser[dat_req->add_req.at(i).id]);
 		}
-		day_ser_select = max_cpu_ser;
+		//排序
+		bubble(vms_node_d);
+		bubble(vms_node_s);
+		//先将虚拟机放入已有服务器  先双后单
+		for (int j = 0; j < vms_node_d.size(); j++)
+		{
+			addVm2Ser(vms_node_d.at(j), false, _day_id);
+		}
+		for (int j = 0; j < vms_node_s.size(); j++)
+		{
+			addVm2Ser(vms_node_s.at(j), false, _day_id);
+		}
+
+		////先将虚拟机放入已有服务器
+		//for (int i = 0; i < dat_req->add_req.size(); i++)
+		//{
+		//	addVm2Ser(&vms_ser[dat_req->add_req.at(i).id],false, _day_id);
+		//}
+		//day_ser_select = max_cpu_ser;
 		//选择服务器
-		//selectSer(dat_req);
+		selectSer(dat_req);     //服务器选择存在问题
 		//查找与每天相匹配的型号 
 		findMatchsDay(dat_req);
+		//将未处理请求加入服务器
+	    for (int j = 0; j < vms_node_d.size(); j++)
+		{
+			if(vms_node_d.at(j)->dealed ==false)
+				addMatchVms2ser(vms_node_d.at(j), _day_id);
+		}
+		for (int j = 0; j < vms_node_s.size(); j++)
+		{
+			if (vms_node_s.at(j)->dealed == false)
+				addMatchVms2ser(vms_node_s.at(j), _day_id);
+		}
 
-		vector<VM2Server*> vms_node0;  //储存单节点  
-		//先处理双节点
-		for (int i = 0; i < dat_req->add_req.size(); i++)
-		{
-			if (vms_ser[dat_req->add_req.at(i).id].dealed == false)
-			{
-				if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
-					addMatchVms2ser(&vms_ser[dat_req->add_req.at(i).id], _day_id);
-				else
-					vms_node0.push_back(&vms_ser[dat_req->add_req.at(i).id]);
-			}
-		}
-		//处理单节点
-		for (int j = 0; j < vms_node0.size(); j++)
-		{
-			addMatchVms2ser(vms_node0.at(j), _day_id);
-		}
+		//vector<VM2Server*> vms_node0;  //储存单节点  
+		////先处理双节点
+		//for (int i = 0; i < dat_req->add_req.size(); i++)
+		//{
+		//	if (vms_ser[dat_req->add_req.at(i).id].dealed == false)
+		//	{
+		//		if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
+		//			addMatchVms2ser(&vms_ser[dat_req->add_req.at(i).id], _day_id);
+		//		else
+		//			vms_node0.push_back(&vms_ser[dat_req->add_req.at(i).id]);
+		//	}
+		//}
+		////处理单节点
+		//for (int j = 0; j < vms_node0.size(); j++)
+		//{
+		//	addMatchVms2ser(vms_node0.at(j), _day_id);
+		//}
 		
 		//处理删除请求
 		for (int i = 0; i < dat_req->del_req.size(); i++)
@@ -238,8 +271,8 @@ public:
 			d_val = abs(data_hand->servers.at(it->first).cpu / data_hand->servers.at(it->first).memory - cpu_mem);
 			if (dk > d_val)
 			{
-				//申请的型号需要满足cpu与mem都大于当前申请的最大值
-				if (data_hand->servers.at(it->first).cpu >= max_cpu && data_hand->servers.at(it->first).memory >= max_mem)
+				//申请的型号需要满足cpu与mem都大于当前申请的最大值2倍
+				if (data_hand->servers.at(it->first).cpu >= max_cpu*2 && data_hand->servers.at(it->first).memory >= max_mem*2)
 				{
 					dk = d_val;
 					_type = data_hand->servers.at(it->first).server_type;
@@ -397,6 +430,17 @@ public:
 
 	}
 
+	//冒泡排序  按cpu与mem的和由大到小排序
+	void bubble(vector<VM2Server*> &vms)
+	{
+		int len = vms.size();
+		for (int i = 0; i < len; i++) {//控制总的趟数
+			for (int j = 1; j < len - i; ++j) {//一次冒泡排序的结果
+				if ( (vms[j - 1]->vm.cpu+ vms[j - 1]->vm.memory) < (vms[j]->vm.cpu + vms[j]->vm.memory)) 
+					swap(vms[j - 1], vms[j]);
+			}
+		}
+	}
 
 private:
 	DataHandling *data_hand;
