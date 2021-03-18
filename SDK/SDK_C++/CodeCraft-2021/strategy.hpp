@@ -3,7 +3,9 @@
 
 #include "data_handling.hpp"
 #include <list>
-#include <algorithm>
+#include "math.h"
+#include <cmath>
+//#include <algorithm>
 
 //单个服务器
 struct OwnServer
@@ -15,7 +17,6 @@ struct OwnServer
 	int memory_A_left; //A节点剩余的memory
 	int cpu_B_left;    //B节点剩余的cpu
 	int memory_B_left;  //B节点剩余的memory
-
 	OwnServer(int _id, ServersData _ser)
 	{
 		id = _id;
@@ -84,6 +85,11 @@ struct OwnServer
 			memory_B_left += _vm_data.memory;
 		}
 	}
+	//打印利用率
+	void coutUsage()
+	{
+		cout<< "CPU: " << 1 - (cpu_A_left + cpu_B_left) / (float)ser.cpu<< "  mem: " << 1 - (memory_A_left + memory_B_left) / (float)ser.memory <<"\n";
+	}
 };
 
 //购买单个服务器的数据
@@ -117,7 +123,6 @@ struct AllServers
 
 	unsigned int num=0;   //计数  每次添加服务器就加1  从0开始
 
-
 	//添加服务器 _ser_dat：类型  day_id：第多少天
 	void addSer(ServersData _ser_dat , int _day_id)
 	{
@@ -140,8 +145,6 @@ struct AllServers
 			pur_sers[_day_id][_ser_dat.server_type].num += 1;
 		}
 	}
-
-
 };
 
 
@@ -175,12 +178,22 @@ public:
 			vms_ser[dat_req->add_req.at(i).id].dealed = false;
 			vms_ser[dat_req->add_req.at(i).id].matched = false;
 			vms_ser[dat_req->add_req.at(i).id].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
-			if(max_cpu < data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
-				max_cpu = data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
-			if (max_mem < data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
-				max_mem = data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
+			if (data_hand->vms.at(dat_req->add_req.at(i).vm_type).node == 0) //单节点  cpu memory 按两倍算
+			{
+				if (max_cpu < 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
+					max_cpu = 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
+				if (max_mem < 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
+					max_mem = 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
+			}
+			else
+			{
+				if (max_cpu < data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
+					max_cpu = data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
+				if (max_mem < data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
+					max_mem = data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
+			}
+			
 		}
-
 		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -202,11 +215,6 @@ public:
 			addVm2Ser(vms_node_s.at(j), false, _day_id);
 		}
 
-		////先将虚拟机放入已有服务器
-		//for (int i = 0; i < dat_req->add_req.size(); i++)
-		//{
-		//	addVm2Ser(&vms_ser[dat_req->add_req.at(i).id],false, _day_id);
-		//}
 		//day_ser_select = max_cpu_ser;
 		//选择服务器
 		selectSer(dat_req);     //服务器选择存在问题
@@ -223,24 +231,6 @@ public:
 			if (vms_node_s.at(j)->dealed == false)
 				addMatchVms2ser(vms_node_s.at(j), _day_id);
 		}
-
-		//vector<VM2Server*> vms_node0;  //储存单节点  
-		////先处理双节点
-		//for (int i = 0; i < dat_req->add_req.size(); i++)
-		//{
-		//	if (vms_ser[dat_req->add_req.at(i).id].dealed == false)
-		//	{
-		//		if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
-		//			addMatchVms2ser(&vms_ser[dat_req->add_req.at(i).id], _day_id);
-		//		else
-		//			vms_node0.push_back(&vms_ser[dat_req->add_req.at(i).id]);
-		//	}
-		//}
-		////处理单节点
-		//for (int j = 0; j < vms_node0.size(); j++)
-		//{
-		//	addMatchVms2ser(vms_node0.at(j), _day_id);
-		//}
 		
 		//处理删除请求
 		for (int i = 0; i < dat_req->del_req.size(); i++)
@@ -252,7 +242,8 @@ public:
 	//根据每天没有处理过的虚拟机数据总和 选择服务器
 	void selectSer(DayRequestData *dat_req)
 	{
-		float cpu_sum=0, mem_sum=0,cpu_mem,dk,d_val;
+		float cpu_sum = 0, mem_sum = 0;
+		int num=0, cost=0;
 		string _type;
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -262,23 +253,53 @@ public:
 				mem_sum += vms_ser.at(dat_req->add_req.at(i).id).vm.memory;
 			}
 		}
-		cpu_mem = cpu_sum / mem_sum;
-		dk = abs(max_cpu_ser.cpu / max_cpu_ser.memory - cpu_mem);  //
-		_type = max_cpu_ser.server_type;
-		//查找最小差值
+
+		//根据每日成本最小查找
 		for (auto it = data_hand->servers.begin(); it != data_hand->servers.end(); ++it)
 		{
-			d_val = abs(data_hand->servers.at(it->first).cpu / data_hand->servers.at(it->first).memory - cpu_mem);
-			if (dk > d_val)
+			int c_num = ceil( cpu_sum / data_hand->servers.at(it->first).cpu);  //向上取整
+			int m_num = ceil( mem_sum / data_hand->servers.at(it->first).memory);
+			int _num = (c_num>m_num)? c_num: m_num;
+			int it_cost = _num * data_hand->servers.at(it->first).hardware_cost;
+
+			//申请的型号需要满足cpu与mem都大于当前申请的最大值
+			if (data_hand->servers.at(it->first).cpu > max_cpu && data_hand->servers.at(it->first).memory > max_mem)
 			{
-				//申请的型号需要满足cpu与mem都大于当前申请的最大值2倍
-				if (data_hand->servers.at(it->first).cpu >= max_cpu*2 && data_hand->servers.at(it->first).memory >= max_mem*2)
+				if (cost == 0)  //未初始化
 				{
-					dk = d_val;
+					cost = it_cost;
 					_type = data_hand->servers.at(it->first).server_type;
+					num = _num;
+				}
+				else if (cost > it_cost)
+				{
+					cost = it_cost;
+					_type = data_hand->servers.at(it->first).server_type;
+					num = _num;
 				}
 			}
 		}
+
+		//根据每日比例查找
+		//float cpu_mem, dk, d_val;
+		//cpu_mem = cpu_sum / mem_sum;
+		//dk = abs(max_cpu_ser.cpu / max_cpu_ser.memory - cpu_mem);  //
+		//_type = max_cpu_ser.server_type;
+		////查找最小差值
+		//for (auto it = data_hand->servers.begin(); it != data_hand->servers.end(); ++it)
+		//{
+		//	d_val = abs(data_hand->servers.at(it->first).cpu / data_hand->servers.at(it->first).memory - cpu_mem);
+		//	if (dk > d_val)
+		//	{
+		//		//申请的型号需要满足cpu与mem都大于当前申请的最大值2倍
+		//		if (data_hand->servers.at(it->first).cpu >= max_cpu*2 && data_hand->servers.at(it->first).memory >= max_mem*2)
+		//		{
+		//			dk = d_val;
+		//			_type = data_hand->servers.at(it->first).server_type;
+		//		}
+		//	}
+		//}
+
 		day_ser_select = data_hand->servers.at(_type);
 	}
 
@@ -393,6 +414,18 @@ public:
 
 	}
 
+	//冒泡排序  按cpu与mem的  由大到小排序
+	void bubble(vector<VM2Server*> &vms)
+	{
+		int len = vms.size();
+		for (int i = 0; i < len; i++) {//控制总的趟数
+			for (int j = 1; j < len - i; ++j) {//一次冒泡排序的结果
+				if ((vms[j - 1]->vm.cpu * vms[j - 1]->vm.memory) < (vms[j]->vm.cpu * vms[j]->vm.memory))
+					swap(vms[j - 1], vms[j]);
+			}
+		}
+	}
+
 	//输出每日信息
 	void coutDayMsg(int _day_id)
 	{
@@ -430,21 +463,18 @@ public:
 
 	}
 
-	//冒泡排序  按cpu与mem的和由大到小排序
-	void bubble(vector<VM2Server*> &vms)
+	void coutAllSersUsage()
 	{
-		int len = vms.size();
-		for (int i = 0; i < len; i++) {//控制总的趟数
-			for (int j = 1; j < len - i; ++j) {//一次冒泡排序的结果
-				if ( (vms[j - 1]->vm.cpu+ vms[j - 1]->vm.memory) < (vms[j]->vm.cpu + vms[j]->vm.memory)) 
-					swap(vms[j - 1], vms[j]);
-			}
+		for (auto iter = own_sers.using_ser.begin(); iter != own_sers.using_ser.end(); iter++)
+		{
+			iter->coutUsage();
 		}
 	}
-
+	
+	
 private:
 	DataHandling *data_hand;
-	AllServers own_sers;                      //拥有的所有服务器
+	AllServers own_sers;  //拥有的所有服务器              
     unordered_map<int, VM2Server> vms_ser;    //所有虚拟机及对应服务器  <id,对应服务器>
 	ServersData max_cpu_ser, max_mem_ser, min_hardcost_ser;
 	ServersData day_ser_select;    //当天选择的服务器类型
