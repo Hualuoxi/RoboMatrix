@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 		strategy->coutDayMsg(i);
 	}
 
-	strategy->coutAllSersUsage();
+	//strategy->coutAllSersUsage();
 	//system("pause");
 	return 0;
 }
