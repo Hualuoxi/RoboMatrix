@@ -24,10 +24,13 @@ int main(int argc, char **argv)
 
 	Strategy *strategy = new Strategy(data_handling);
 
+	//ofstream out_file("output.txt", ios::trunc);
+
 	for (int i = 0; i < data_handling->requests_all->size(); i++)
 	{
 		strategy->dealDayReq(&data_handling->requests_all->at(i), i);
 		strategy->coutDayMsg(i);
+		//strategy->cout2File(out_file,i);
 	}
 
 	//strategy->coutAllSersUsage();

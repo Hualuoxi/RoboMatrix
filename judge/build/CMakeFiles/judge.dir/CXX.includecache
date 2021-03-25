@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/xu/Desktop/RoboMatrix/judge/main.cpp
+utility
+-
+string
+-
+map
+-
+iostream
+-
+fstream
+-
+vector
+-
+
