@@ -174,7 +174,7 @@ struct MigrationMsg
 
 bool myCompare(OwnServer &p1, OwnServer &p2)
 {
-	return (p1.usage_cpu) > (p2.usage_cpu );		//按cpu排序
+	return (p1.usage_cpu + p1.usage_mem) > (p2.usage_cpu + p2.usage_mem);		//按二者和排序
 }
 
 //拥有的所有服务器
@@ -182,8 +182,6 @@ struct AllServers
 {
 	//正在使用的服务器  只能使用list
 	list<OwnServer> using_ser;
-	//空闲的服务器
-	//vector<OwnServer> left_ser;  //空闲服务器怎么判断？
 
 	//<天数,<型号 数量> >  天数从0开始
 	unordered_map<int,unordered_map<string, PurSerData>> pur_sers;
@@ -220,7 +218,6 @@ struct AllServers
 	
 };
 
-
 class Strategy
 {
 public:
@@ -246,7 +243,11 @@ public:
 	void dealDayReq(DayRequestData *dat_req, int _day_id)
 	{
 		mig_msgs_day.clear();  //清除上一天数据
-		max_cpu = max_mem = 0;
+		mig_num_day=0;
+		migration(&mig_msgs_day, _day_id);
+		migLowCPU2Mem(&mig_msgs_day, _day_id);
+
+		unordered_map<int,DelMsg> del_msg_day;   //每日的删除请求
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -256,7 +257,6 @@ public:
 			vms_ser[dat_req->add_req.at(i).id].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
 		}
 		//删除的消息转化为 DelMsg 格式
-		unordered_map<int,DelMsg> del_msg_day;   //每日的删除请求
 		for (int i = 0; i < dat_req->del_req.size(); i++)
 		{
 			DelMsg msg;
@@ -264,8 +264,6 @@ public:
 			msg.dealed = false;
 			del_msg_day[msg.id] = msg;
 		}
-
-		migration(&mig_msgs_day, _day_id);
 
 		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
 		for (int i = 0; i < dat_req->add_req.size(); i++)
@@ -290,25 +288,6 @@ public:
 		
 		selectSer(dat_req, _day_id);
 
-		/*vector<VM2Server*> vms_node_undealed;
-		for (int i = 0; i < vms_node_d.size(); i++)
-		{
-			if (vms_node_d.at(i)->dealed == false)
-				vms_node_undealed.push_back(vms_node_d.at(i));
-		}
-		for (int i = 0; i < vms_node_s.size(); i++)
-		{
-			if (vms_node_s.at(i)->dealed == false)
-				vms_node_undealed.push_back(vms_node_s.at(i));
-		}
-		if(vms_node_undealed.size()>5)
-			simulatedFire(&vms_node_undealed, _day_id);
-		for (int i = 0; i < vms_node_undealed.size(); i++)
-		{
-			addVm2Ser(vms_node_undealed.at(i), true, _day_id);
-		}*/
-
-
 		//将剩下的虚拟机放入服务器  先双后单
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
@@ -321,12 +300,13 @@ public:
 				addVm2Ser(vms_node_s.at(j), true, _day_id);
 		}
 
-		//处理剩下的删除请求
+		// //处理剩下的删除请求
 		for (auto it = del_msg_day.begin(); it != del_msg_day.end(); ++it)
 		{
 			if(del_msg_day.at(it->first).dealed == false)
 				delVm(&del_msg_day.at(it->first), _day_id);
 		}
+
 		//服务器排序
 		own_sers.sort();
 	}
@@ -334,31 +314,31 @@ public:
 	void migration(vector<MigrationMsg> *mig_msg,int _day_id)
 	{
 		unordered_map<int,OwnServer*> mig_sers; //迁移的服务器或者空闲的 之后就不往里面迁移了
-		int mig_num=0; //迁移次数
+		
 		if (own_sers.using_ser.size() == 0) return;
 		for (auto it = --own_sers.using_ser.end(); it != own_sers.using_ser.begin(); it--)
 		{
-			if (mig_num >= floor( 5*vms_ser.size() /1000 -2 ) )
+			if (mig_num_day >= ( 5*vms_ser.size() /1000  ) )
 				break;
 			if (it->usage_cpu ==0 || it->usage_mem ==0)
 			{
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.2 || it->usage_mem < 0.2  ) //利用率低
+			if (it->usage_cpu < 0.5 || it->usage_mem < 0.5  ) //利用率低
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
 				for (auto it_vm = it->vms.begin(); it_vm != it->vms.end(); ++it_vm)
 				{
-					if (mig_num >= floor( 5*vms_ser.size() /1000 -2 ) )
+					if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
 						break;
 					bool inset_success = false;
 					for (auto it2 = own_sers.using_ser.begin(); it2 != own_sers.using_ser.end(); ++it2)
 					{
 						if(mig_sers.find(it2->id) == mig_sers.end())   //不在迁移表中
 						{
-							if (mig_num >= floor( 5*vms_ser.size() /1000 -2 ) )
+							if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
 								break;
 							(*it_vm)->a_b_mig = (*it_vm)->a_b;
 							inset_success = it2->insertVM(*it_vm, _day_id);
@@ -373,7 +353,7 @@ public:
 								(*it_vm)->own_ser = &*it2;
 								//循环的时候不能删除元素  记录下来
 								vms_remove.push_back(*it_vm);
-								mig_num++;
+								mig_num_day++;
 								break;
 							}
 						}
@@ -388,139 +368,64 @@ public:
 		//cout << "mig_num: "<< mig_num << "  "<< vms_ser.size() <<"  "<< vms_ser.size()*5 /1000 <<"\n";
 	}
 
-	void  simulatedFire(vector<VM2Server*> *vms , int _day_id)
+	void migLowCPU2Mem(vector<MigrationMsg> *mig_msg,int _day_id)
 	{
-		const int max_nums = 500;  //最大运行次数
-
-		double r = 0.98;	 //用于控制降温的快慢
-		double T = 30000;		 //系统的温度，系统初始应该要处于一个高温的状态
-		double T_min = 0.1; //温度的下限，若温度T达到T_min，则停止搜索
-		int cost_ori;
-		int best,current;
-		int dE;  //current与best差值
-		vector<ServersData> sers_ori;
-		vector<ServersData> sers_copy, sers_copy_best;
-
-		cost_ori = calSersCost(vms, &sers_ori);
-		//copy数据
-		sers_copy = sers_ori;
-		sers_copy_best = sers_copy;
-		
-		srand((unsigned)(time(NULL)));
-
-		best = cost_ori;
-		//cout << "before fire:" << cost_ori << endl;
-
-		while (T > T_min)
+		vector<OwnServer*> sers_low_cpu,sers_low_mem;  //
+		for (auto it1 = own_sers.using_ser.begin(); it1 != own_sers.using_ser.end(); ++it1)
 		{
-			generateNew(&sers_copy, 50);
-			current = calSersCost(vms, &sers_copy);
-			dE = current - best;
-			if (current < best) //移动后得到更优解，则总是接受移动
+			if(it1->usage_mem > 0.9 && it1->usage_cpu >0.5 && it1->usage_cpu <0.7)
 			{
-				best = current;
-				//将新的顺序赋值
-				sers_copy_best = sers_copy;
+				sers_low_cpu.push_back(&*it1);
 			}
-			else
+			if(it1->usage_cpu > 0.9 && it1->usage_mem >0.5 && it1->usage_mem <0.7)
 			{
-				// 函数exp( dE/T )的取值范围是(0,1) ，dE/T越大，则exp( dE/T )也越大
-				//一定的概率接受差的值
-				if (exp( -dE / T ) > rnd(0.0, 1.0))
+				sers_low_mem.push_back(&*it1);
+			}
+		}
+		if(sers_low_cpu.size() ==0 || sers_low_mem.size() ==0)  return;
+		for (unsigned int i=0; i<sers_low_cpu.size();i++)
+		{
+			if (mig_num_day >= ( 5*vms_ser.size() /1000  ) )
+				break;
+			vector<VM2Server*> vms_remove;
+			for (auto it_vm = sers_low_cpu.at(i)->vms.begin(); it_vm != sers_low_cpu.at(i)->vms.end(); ++it_vm)
+			{
+				if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+						break;
+				bool inset_success = false;
+				for (unsigned int j=0; j<sers_low_mem.size();j++)
 				{
-					best = current;
-					sers_copy_best = sers_copy;
+					if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+						break;
+					(*it_vm)->a_b_mig = (*it_vm)->a_b;
+					inset_success = sers_low_mem.at(j)->insertVM(*it_vm, _day_id);
+					if (inset_success)
+					{
+						MigrationMsg mig;
+						mig.vm_id = (*it_vm)->vm_id;
+						mig.aim_id = sers_low_mem.at(j)->id;
+						mig.a_b = (*it_vm)->a_b;
+						mig_msg->push_back(mig);
+
+						(*it_vm)->own_ser = sers_low_mem.at(j);
+						//循环的时候不能删除元素  记录下来
+						vms_remove.push_back(*it_vm);
+						mig_num_day++;
+						break;
+					}
 				}
 			}
-			T = r * T; //降温退火 ，0<r<1 。r越大，降温越慢；r越小，降温越快
-		}
-		//cout << "after fire:" << best << endl;
-
-		//如果运行后小于原来值  则赋值
-		if (best < cost_ori)
-		{
-			sers_ori = sers_copy_best;
-		}
-		for (int i = 0; i < sers_ori.size(); i++)
-		{
-			own_sers.addSer(sers_ori.at(i), _day_id);
-		}
-	}
-
-	//计算成本
-	int calSersCost(vector<VM2Server*> *vms, vector<ServersData> *_sers_list)
-	{
-		vector<OwnServer> sers_add;
-		int cost=0;
-		for (int i = 0; i < _sers_list->size(); i++)
-		{
-			OwnServer ser(0, _sers_list->at(i));
-			sers_add.push_back(ser);
-		}
-		for (int i = 0; i < vms->size(); i++)
-		{
-			//在现在的列表中添加虚拟机  如果没有空间，则申请当天所选的服务器
-			addVmsDaySers(vms->at(i), &sers_add, &day_ser_select, 0);
-		}
-		//更新服务器表
-		_sers_list->clear();
-		for (auto it = sers_add.begin(); it != sers_add.end(); it++)
-		{
-			if (it->unused == false)
+			for(int s=0 ;s< vms_remove.size() ;s++)
 			{
-				cost += it->ser.hardware_cost;
-				_sers_list->push_back(it->ser);
-			}
-		}
-		return cost;
-		
-	}
-
-	//产生新解：随机往数组里放新的服务器
-	void generateNew(vector<ServersData> *sers,int swap_times)
-	{
-		for (int i = 0; i < swap_times; i++)
-		{
-			auto random_it = std::next(std::begin(data_hand->servers), rand() % (data_hand->servers.size()));
-			int posx = rand() % sers->size();  //产生0-vms->size() 的随机数
-			sers->at(posx) = data_hand->servers.at(random_it->first);
-		}
-	}
-
-	//产生（dbLow,dbUpper）之间的随机数
-	double rnd(double dbLow, double dbUpper)
-	{
-		double dbTemp = rand() / ((double)RAND_MAX + 1.0);
-		return dbLow + dbTemp * (dbUpper - dbLow);
-	}
-
-	//查找请求中最大cpu与mem
-	void findMaxCpuMem(vector<VM2Server> *vms , int *_max_cpu ,int *_max_mem)
-	{
-		*_max_cpu = 0; *_max_mem = 0;
-		for (int i = 0; i < vms->size(); i++)
-		{
-			if (vms->at(i).vm.node == 0) //单节点cpu memory 按两倍算
-			{
-				if (*_max_cpu < 2 * vms->at(i).vm.cpu)
-					*_max_cpu = 2 * vms->at(i).vm.cpu;
-				if (*_max_mem < 2 * vms->at(i).vm.memory)
-					*_max_mem = 2 * vms->at(i).vm.memory;
-			}
-			else
-			{
-				if (*_max_cpu < vms->at(i).vm.cpu)
-					*_max_cpu = vms->at(i).vm.cpu;
-				if (*_max_mem < vms->at(i).vm.memory)
-					*_max_mem = vms->at(i).vm.memory;
+				sers_low_cpu.at(i)->removeVM(vms_remove.at(s),vms_remove.at(s)->a_b_mig , _day_id);
 			}
 		}
 	}
-
 
 	//根据每天没有处理过的虚拟机数据总和 选择服务器
 	void selectSer(DayRequestData *dat_req, int _day_id)
 	{
+		max_cpu = max_mem = 0;
 		//查找当天没有处理过的虚拟机数据最大cpu
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -583,7 +488,7 @@ public:
 		}
 		day_ser_select = data_hand->servers.at(_type);
 	}
-
+	
 	//添加虚拟机到服务器 add_new_ser:如果没有空间，是否申请新服务器
 	void addVm2Ser(VM2Server *_vm2ser,bool add_new_ser, int _day_id)
 	{
@@ -621,6 +526,9 @@ public:
 			}
 		}
 	}
+
+
+	
 
 	//将虚拟机添加到新增服务器
 	bool addVmsDaySers(VM2Server *_vm2ser, vector<OwnServer> *_sers_day_add, ServersData *_ser_select, int _day_id)
@@ -804,7 +712,7 @@ private:
 	int max_cpu, max_mem;  //每天请求中最大cpu与最大mem
 	int all_day_num; //总天数
 	vector<MigrationMsg> mig_msgs_day;  //每天的迁移
-	
+	int mig_num_day=0; //迁移次数
 };
 
 
