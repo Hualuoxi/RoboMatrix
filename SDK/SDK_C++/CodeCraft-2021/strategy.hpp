@@ -316,6 +316,7 @@ public:
 		unordered_map<int,OwnServer*> mig_sers; //迁移的服务器或者空闲的 之后就不往里面迁移了
 		
 		if (own_sers.using_ser.size() == 0) return;
+
 		for (auto it = --own_sers.using_ser.end(); it != own_sers.using_ser.begin(); it--)
 		{
 			if (mig_num_day >= ( 5*vms_ser.size() /1000  ) )
@@ -325,7 +326,7 @@ public:
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.5 || it->usage_mem < 0.5  ) //利用率低
+			if (it->usage_cpu < 0.58 || it->usage_mem < 0.58  ) //利用率低  0.6 timeout
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
@@ -373,11 +374,11 @@ public:
 		vector<OwnServer*> sers_low_cpu,sers_low_mem;  //
 		for (auto it1 = own_sers.using_ser.begin(); it1 != own_sers.using_ser.end(); ++it1)
 		{
-			if(it1->usage_mem > 0.9 && it1->usage_cpu >0.5 && it1->usage_cpu <0.7)
+			if(it1->usage_mem > 0.85 && it1->usage_cpu >0.5 && it1->usage_cpu <0.7)
 			{
 				sers_low_cpu.push_back(&*it1);
 			}
-			if(it1->usage_cpu > 0.9 && it1->usage_mem >0.5 && it1->usage_mem <0.7)
+			if(it1->usage_cpu > 0.85 && it1->usage_mem >0.5 && it1->usage_mem <0.7)
 			{
 				sers_low_mem.push_back(&*it1);
 			}
@@ -420,6 +421,45 @@ public:
 				sers_low_cpu.at(i)->removeVM(vms_remove.at(s),vms_remove.at(s)->a_b_mig , _day_id);
 			}
 		}
+
+		for (unsigned int i=0; i<sers_low_mem.size();i++)
+		{
+			if (mig_num_day >= ( 5*vms_ser.size() /1000  ) )
+				break;
+			vector<VM2Server*> vms_remove;
+			for (auto it_vm = sers_low_mem.at(i)->vms.begin(); it_vm != sers_low_mem.at(i)->vms.end(); ++it_vm)
+			{
+				if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+						break;
+				bool inset_success = false;
+				for (unsigned int j=0; j<sers_low_cpu.size();j++)
+				{
+					if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+						break;
+					(*it_vm)->a_b_mig = (*it_vm)->a_b;
+					inset_success = sers_low_cpu.at(j)->insertVM(*it_vm, _day_id);
+					if (inset_success)
+					{
+						MigrationMsg mig;
+						mig.vm_id = (*it_vm)->vm_id;
+						mig.aim_id = sers_low_cpu.at(j)->id;
+						mig.a_b = (*it_vm)->a_b;
+						mig_msg->push_back(mig);
+
+						(*it_vm)->own_ser = sers_low_cpu.at(j);
+						//循环的时候不能删除元素  记录下来
+						vms_remove.push_back(*it_vm);
+						mig_num_day++;
+						break;
+					}
+				}
+			}
+			for(int s=0 ;s< vms_remove.size() ;s++)
+			{
+				sers_low_mem.at(i)->removeVM(vms_remove.at(s),vms_remove.at(s)->a_b_mig , _day_id);
+			}
+		}
+
 	}
 
 	//根据每天没有处理过的虚拟机数据总和 选择服务器
@@ -527,7 +567,6 @@ public:
 		}
 	}
 
-
 	
 
 	//将虚拟机添加到新增服务器
@@ -591,7 +630,7 @@ public:
 	//输出每日信息
 	void coutDayMsg(int _day_id)
 	{
-		//购买型号的数量
+		//购买型号的数量   bug  哈希表无序
 		if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
 		{
 			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
