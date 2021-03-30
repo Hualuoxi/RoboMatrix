@@ -20,19 +20,17 @@ int main(int argc, char **argv)
 	string str_line;
 	while(true)
 	{
-		while (!data_handling->read_all_finished && getline(cin, str_line) )
+		while (!data_handling->read_all_finished)
 		{
-			if (str_line.length() > 0)
+			getline(cin, str_line);
+			if (!data_handling->dealLineData(str_line))
 			{
-				if (!data_handling->dealLineData(str_line))
-				{
-					if (!data_handling->readed_kday_reqs) continue;  //没有读完k天的数据
-					if (data_handling->day_read_finished)    //读完当天的数据
-						break;   //跳出读取循环
-				}
-				else
-					break;
+				if (!data_handling->readed_kday_reqs) continue;  //没有读完k天的数据
+				if (data_handling->day_read_finished)    //读完当天的数据
+					break;   //跳出读取循环
 			}
+			else
+				break;
 		}
 
 		strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);

@@ -45,6 +45,98 @@ struct DayRequestData
 
 class DataHandling
 {
+private:
+    vector<int> everyday_num;
+    ServersData servers_data;
+    VMData vms_data;
+    RequestData req_data;
+    int ser_tmp,vm_tmp,req_tmp;
+    int day_tmp=0;
+    bool debug;
+    int i=1;
+    int num=1; 
+    string::iterator  p ; //迭代器p
+    void serversDeal(string _word)
+    {
+         if(ser_tmp == 5){
+                servers_data.server_type = _word;
+                ser_tmp--;
+                if(debug) cout << servers_data.server_type<<"  ";
+            }
+            else if(ser_tmp == 4){
+                servers_data.cpu = stoi(_word);
+                ser_tmp--;
+                if(debug) cout << servers_data.cpu<<"  ";
+            }
+            else if(ser_tmp == 3){
+                servers_data.memory = stoi(_word);
+                ser_tmp--;
+                if(debug) cout << servers_data.memory<<"  ";
+            }
+            else if(ser_tmp == 2){
+                servers_data.hardware_cost = stoi(_word);
+                ser_tmp--;
+                if(debug) cout << servers_data.hardware_cost<<"  ";
+            }
+            else if(ser_tmp == 1){
+                servers_data.energy_day = stoi(_word);
+                ser_tmp--;
+                if(debug) cout << servers_data.energy_day<<"  ";
+            }
+    }
+
+    void vmsDeal(string _word)
+    {
+        if(vm_tmp == 4){
+            vms_data.vm_type = _word;
+            vm_tmp--;
+            if(debug) cout << vms_data.vm_type<<"  ";
+        }
+        else if(vm_tmp == 3){
+            vms_data.cpu = stoi(_word);
+            vm_tmp--;
+            if(debug) cout << vms_data.cpu<<"  ";
+        }
+        else if(vm_tmp == 2){
+            vms_data.memory = stoi(_word);
+            vm_tmp--;
+            if(debug) cout << vms_data.memory<<"  ";
+        }
+         else if(vm_tmp == 1){
+            vms_data.node = stoi(_word);
+            vm_tmp--;
+            if(debug) cout << vms_data.node<<"  ";
+        }
+    }
+
+    void requestsDeal(string _word)
+    {
+        if(req_tmp == 3){
+            req_data.req = _word;
+            req_tmp--;
+            if(debug) cout<<"req: " << req_data.req <<"...";
+        }
+        else if(req_tmp == 2)
+        {
+            if(req_data.req == "add")
+            {
+                _word.erase(0,_word.find_first_not_of(" "));  //去年首部空格
+                req_data.vm_type = _word;
+                req_tmp--;
+               if(debug)  cout<<"type: " << req_data.vm_type<<"...";
+            }
+            else
+            {
+                req_data.id = stoi(_word);
+               if(debug)  cout<<"id: " << req_data.id <<"...";
+            } 
+        }
+        else if(req_tmp == 1)
+        {
+            req_data.id = stoi(_word);
+            if(debug) cout <<"id: "<< req_data.id <<"...";
+        }
+    }
 public:
     unordered_map <string, ServersData> servers;  //所有服务器
     unordered_map <string, VMData> vms;   //所有虚拟机
@@ -58,7 +150,6 @@ public:
         debug = _debug;
     };
     //是否读取完所有数据
-
 
     bool dealLineData(string tmp_line)
     {
@@ -151,6 +242,8 @@ public:
 
 
 
+
+
     bool openFile(const char *filePath)
     {
         ifstream infile(filePath,std::ios::in);
@@ -177,108 +270,5 @@ public:
         cout<<"close file\n";
         return true;
     }
-
-
-    void stdCout( )
-    {
-
-    }
-
-private:
-    
-    vector<int> everyday_num;
-    ServersData servers_data;
-    VMData vms_data;
-    RequestData req_data;
-    int ser_tmp,vm_tmp,req_tmp;
-    int day_tmp=0;
-    bool debug;
-    int i=1;
-    int num=1; 
-    string::iterator  p ; //迭代器p
-    void serversDeal(string _word)
-    {
-         if(ser_tmp == 5){
-                servers_data.server_type = _word;
-                ser_tmp--;
-                if(debug) cout << servers_data.server_type<<"  ";
-            }
-            else if(ser_tmp == 4){
-                servers_data.cpu = stoi(_word);
-                ser_tmp--;
-                if(debug) cout << servers_data.cpu<<"  ";
-            }
-            else if(ser_tmp == 3){
-                servers_data.memory = stoi(_word);
-                ser_tmp--;
-                if(debug) cout << servers_data.memory<<"  ";
-            }
-            else if(ser_tmp == 2){
-                servers_data.hardware_cost = stoi(_word);
-                ser_tmp--;
-                if(debug) cout << servers_data.hardware_cost<<"  ";
-            }
-            else if(ser_tmp == 1){
-                servers_data.energy_day = stoi(_word);
-                ser_tmp--;
-                if(debug) cout << servers_data.energy_day<<"  ";
-            }
-    }
-
-    void vmsDeal(string _word)
-    {
-        if(vm_tmp == 4){
-            vms_data.vm_type = _word;
-            vm_tmp--;
-            if(debug) cout << vms_data.vm_type<<"  ";
-        }
-        else if(vm_tmp == 3){
-            vms_data.cpu = stoi(_word);
-            vm_tmp--;
-            if(debug) cout << vms_data.cpu<<"  ";
-        }
-        else if(vm_tmp == 2){
-            vms_data.memory = stoi(_word);
-            vm_tmp--;
-            if(debug) cout << vms_data.memory<<"  ";
-        }
-         else if(vm_tmp == 1){
-            vms_data.node = stoi(_word);
-            vm_tmp--;
-            if(debug) cout << vms_data.node<<"  ";
-        }
-    }
-
-    void requestsDeal(string _word)
-    {
-        if(req_tmp == 3){
-            req_data.req = _word;
-            req_tmp--;
-            if(debug) cout<<"req: " << req_data.req <<"...";
-        }
-        else if(req_tmp == 2)
-        {
-            if(req_data.req == "add")
-            {
-                _word.erase(0,_word.find_first_not_of(" "));  //去年首部空格
-                req_data.vm_type = _word;
-                req_tmp--;
-               if(debug)  cout<<"type: " << req_data.vm_type<<"...";
-            }
-            else
-            {
-                req_data.id = stoi(_word);
-               if(debug)  cout<<"id: " << req_data.id <<"...";
-            } 
-        }
-        else if(req_tmp == 1)
-        {
-            req_data.id = stoi(_word);
-            if(debug) cout <<"id: "<< req_data.id <<"...";
-        }
-    }
-    
 };
-
-
 #endif
