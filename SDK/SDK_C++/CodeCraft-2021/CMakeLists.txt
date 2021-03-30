@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 2.8)
 
 # 项目信息
 project("CodeCraft-2021")
-
 # include路径
 include_directories(${PROJECT_SOURCE_DIR}/lib)
 

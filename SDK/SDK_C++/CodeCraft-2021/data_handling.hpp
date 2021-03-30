@@ -49,6 +49,10 @@ public:
     unordered_map <string, ServersData> servers;  //所有服务器
     unordered_map <string, VMData> vms;   //所有虚拟机
     vector<DayRequestData> *requests_all;  //所有天的请求数据
+	int servers_num, vms_num, day_num, k_num; //服务器型号数量  虚拟机型号数量 总天数 提前知晓的天数
+	bool readed_kday_reqs=false;  //是否读完k天的请求
+	bool day_read_finished= false;     //是否读取完当天数据
+	bool read_all_finished = false;    //是否读取完所有天数据
     DataHandling(bool _debug=true)
     {
         debug = _debug;
@@ -57,18 +61,33 @@ public:
     bool dealLineData(string tmp_line)
     {
         if(debug) cout<< i <<"\n"; i=i+1;
+		day_read_finished = false;
         if(tmp_line.data()[0] != '(' ) //
         {
             if(num == 1) servers_num = stoi(tmp_line);
             if(num == 2) vms_num = stoi(tmp_line);
             if(num == 3) {
-                day_num = stoi(tmp_line);
+				string tep_word;
+				stringstream words(tmp_line);
+				int i = 2;
+				while (getline(words, tep_word, ' '))
+				{
+					if (i == 2){
+						day_num = stoi(tep_word);
+						i--;
+					}
+					else
+						k_num = stoi(tep_word);
+				}
+                
                 requests_all = new vector<DayRequestData>(day_num);
             }
             if(num > 3 ) 
             {
                 everyday_num.push_back( stoi(tmp_line) );
                 day_tmp++;
+				if (day_tmp >= k_num)  
+					readed_kday_reqs = true;
             }
             num+=1;
             if(debug) cout<<"num:  "<<stoi(tmp_line) <<"\n";
@@ -112,10 +131,14 @@ public:
 					else
 						requests_all->at(day_tmp - 1).del_req.push_back(req_data);
 				}
-				
+				if (requests_all->at(day_tmp - 1).day_request.size() == everyday_num.at(day_tmp - 1))
+					day_read_finished = true;
                 //当读到最后一天的最后一条数据  返回真
-                if(day_tmp == day_num && requests_all->back().day_request.size() == everyday_num.back()) 
-                    return true;
+				if (day_tmp == day_num && requests_all->back().day_request.size() == everyday_num.back())
+				{
+					read_all_finished = true;
+					return true;
+				}
             }
 
             if(debug) cout<<"\n";
@@ -133,9 +156,11 @@ public:
         
         if (!infile.fail())
         {          
-            while(getline(infile, tmp_line ) && !infile.eof())  //逐行读取
+            while(getline(infile, tmp_line ))  //逐行读取
             {
-                dealLineData(tmp_line);
+				if (tmp_line.length() > 0)
+					if (dealLineData(tmp_line))
+						break;
             }
             cout<<"read over\n";
         }
@@ -156,7 +181,7 @@ public:
     }
 
 private:
-    int servers_num,vms_num,day_num;
+    
     vector<int> everyday_num;
     ServersData servers_data;
     VMData vms_data;

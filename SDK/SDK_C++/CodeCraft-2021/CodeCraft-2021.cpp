@@ -10,29 +10,41 @@ int main(int argc, char **argv)
 	// TODO:fflush(stdout);
 
 	DataHandling *data_handling = new DataHandling(false);
-	 //data_handling->openFile("training-1.txt");
-	
-	//读取所有数据
-	string str_line;
-	while(getline(cin,str_line))
-	{
-		if(str_line.length() > 0)
-			if(data_handling->dealLineData(str_line))
-				break;
-	}
+	//data_handling->openFile("training-1.txt");
 
 	Strategy *strategy = new Strategy(data_handling);
-
+	int deal_day_id = 0;
 	//ofstream out_file("output.txt", ios::trunc);
 
-	for (int i = 0; i < data_handling->requests_all->size(); i++)
+	//读取所有数据
+	string str_line;
+	while(true)
 	{
-		strategy->dealDayReq(&data_handling->requests_all->at(i), i);
-		strategy->coutDayMsg(i);
-		//strategy->cout2File(out_file,i);
-	}
+		while (!data_handling->read_all_finished && getline(cin, str_line) )
+		{
+			if (str_line.length() > 0)
+			{
+				if (!data_handling->dealLineData(str_line))
+				{
+					if (!data_handling->readed_kday_reqs) continue;  //没有读完k天的数据
+					if (data_handling->day_read_finished)    //读完当天的数据
+						break;   //跳出读取循环
+				}
+				else
+					break;
+			}
+		}
 
+		strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
+		strategy->coutDayMsg(deal_day_id);
+		//strategy->cout2File(out_file,deal_day_id);
+		deal_day_id++;
+		if (deal_day_id == data_handling->requests_all->size())  //处理完所有数据 
+			break;
+	}
 	//strategy->coutAllSersUsage();
+	//out_file.close();
+	
 	//system("pause");
 	return 0;
 }
