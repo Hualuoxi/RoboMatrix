@@ -1,7 +1,8 @@
 file(REMOVE_RECURSE
+  "/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021"
+  "/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021.pdb"
   "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o"
-  "/home/xu/Desktop/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021.pdb"
-  "/home/xu/Desktop/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021"
+  "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o.d"
 )
 
 # Per-language clean rules from dependency scanning.

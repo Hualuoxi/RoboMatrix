@@ -7,10 +7,10 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/CMakeLists.txt"
   "CMakeFiles/3.20.0-rc3/CMakeCCompiler.cmake"
   "CMakeFiles/3.20.0-rc3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.20.0-rc3/CMakeSystem.cmake"
+  "CMakeLists.txt"
   "/usr/local/share/cmake-3.20/Modules/CMakeCCompiler.cmake.in"
   "/usr/local/share/cmake-3.20/Modules/CMakeCCompilerABI.c"
   "/usr/local/share/cmake-3.20/Modules/CMakeCInformation.cmake"
@@ -117,5 +117,5 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/CodeCraft-2021.dir/DependInfo.cmake"
+  "CMakeFiles/judge.dir/DependInfo.cmake"
   )

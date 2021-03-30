@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/lib
+CXX_INCLUDES = -I/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/judge/lib
 
 CXX_FLAGS =  -O3 -Wall -std=c++11
 

@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/CodeCraft-2021.cpp" "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o" "gcc" "CMakeFiles/CodeCraft-2021.dir/CodeCraft-2021.cpp.o.d"
+  "/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/judge/main.cpp" "CMakeFiles/judge.dir/main.cpp.o" "gcc" "CMakeFiles/judge.dir/main.cpp.o.d"
   )
 
 # Targets to which this target links.

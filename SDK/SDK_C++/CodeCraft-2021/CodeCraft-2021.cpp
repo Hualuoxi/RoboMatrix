@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 	// TODO:fflush(stdout);
 
 	DataHandling *data_handling = new DataHandling(false);
-	//data_handling->openFile("training-1.txt");
+	// data_handling->openFile("training-1.txt");
 
 	Strategy *strategy = new Strategy(data_handling);
 	int deal_day_id = 0;
@@ -42,6 +42,7 @@ int main(int argc, char **argv)
 		if (deal_day_id == data_handling->requests_all->size())  //处理完所有数据 
 			break;
 	}
+	// strategy->coutAllCosts();
 	//strategy->coutAllSersUsage();
 	//out_file.close();
 	

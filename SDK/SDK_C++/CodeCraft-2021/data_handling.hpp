@@ -5,8 +5,8 @@
 #include "stdlib.h"
 #include <vector>
 #include <fstream>
-#include<sstream>
-#include<iostream>
+#include <sstream>
+#include <iostream>
 using namespace std;
 
 //服务器数据类型
@@ -50,77 +50,79 @@ public:
     unordered_map <string, VMData> vms;   //所有虚拟机
     vector<DayRequestData> *requests_all;  //所有天的请求数据
 	int servers_num, vms_num, day_num, k_num; //服务器型号数量  虚拟机型号数量 总天数 提前知晓的天数
-	bool readed_kday_reqs=false;  //是否读完k天的请求
-	bool day_read_finished= false;     //是否读取完当天数据
+	bool readed_kday_reqs  = false;  //是否读完k天的请求
+	bool day_read_finished = false;     //是否读取完当天数据
 	bool read_all_finished = false;    //是否读取完所有天数据
     DataHandling(bool _debug=true)
     {
         debug = _debug;
     };
     //是否读取完所有数据
+
+
     bool dealLineData(string tmp_line)
     {
-        if(debug) cout<< i <<"\n"; i=i+1;
+        stringstream lineStream(tmp_line);
 		day_read_finished = false;
         if(tmp_line.data()[0] != '(' ) //
         {
-            if(num == 1) servers_num = stoi(tmp_line);
-            if(num == 2) vms_num = stoi(tmp_line);
-            if(num == 3) {
-				string tep_word;
-				stringstream words(tmp_line);
-				int i = 2;
-				while (getline(words, tep_word, ' '))
-				{
-					if (i == 2){
-						day_num = stoi(tep_word);
-						i--;
-					}
-					else
-						k_num = stoi(tep_word);
-				}
-                
+            if(num == 1) 
+                lineStream >> servers_num ;
+            else if(num == 2) 
+                lineStream >> vms_num;
+            else if(num == 3)
+            {
+                lineStream >> day_num;
+                lineStream >> k_num;
                 requests_all = new vector<DayRequestData>(day_num);
             }
-            if(num > 3 ) 
+            else if(num > 3 ) 
             {
-                everyday_num.push_back( stoi(tmp_line) );
-                day_tmp++;
-				if (day_tmp >= k_num)  
-					readed_kday_reqs = true;
+                everyday_num.push_back(stoi(tmp_line));
+                ++day_tmp;
+				 if (day_tmp >= k_num)  
+				 	readed_kday_reqs = true;
             }
-            num+=1;
-            if(debug) cout<<"num:  "<<stoi(tmp_line) <<"\n";
+            ++num;
             return false;
         }
         else
         {
-            p = tmp_line.begin();
-            tmp_line.erase(p);  
-            p = tmp_line.end(); p--;
-            tmp_line.erase(p); 
-            stringstream words(tmp_line);
-            string tep_word;
-            if(debug) cout <<"line:  " <<tmp_line <<endl;
-            ser_tmp = 5; vm_tmp = 4;req_tmp=3;
-            while(getline(words, tep_word, ','))//以,为分隔符，读取数据
+            lineStream.ignore(); //去左括号
+            if(2 == num)
             {
-                if(num == 2) serversDeal(tep_word);
-                if(num == 3) vmsDeal(tep_word);
-                if(num>3)  requestsDeal(tep_word);
-            }
-
-            if(num ==2) 
-            {
+                getline(lineStream,servers_data.server_type,',');
+                lineStream >> servers_data.cpu;
+                lineStream.ignore(2);
+                lineStream >> servers_data.memory;
+                lineStream.ignore(2);
+                lineStream >> servers_data.hardware_cost;
+                lineStream.ignore(2);
+                lineStream >> servers_data.energy_day;
                 servers[servers_data.server_type] = servers_data;
             }
-            if(num == 3)
+            else if(3 == num)
             {
-                // pair<string,VMData>tmp (vms_data.vm_type,vms_data);
-                // vms.insert(tmp);
+                getline(lineStream,vms_data.vm_type,',');
+                lineStream >> vms_data.cpu;
+                lineStream.ignore(2);
+                lineStream >> vms_data.memory;
+                lineStream.ignore(2);
+                lineStream >> vms_data.node;
                 vms[vms_data.vm_type] = vms_data;
+                //cout << vms[vms_data.vm_type].vm_type << endl;
             }
-            
+            else if(3 < num)
+            {
+                getline(lineStream,req_data.req,',');
+                if("add" == req_data.req)
+                {
+                    lineStream.ignore();
+                    getline(lineStream,req_data.vm_type,',');
+                }
+                lineStream >> req_data.id;
+                // cout << req_data.vm_type<<endl;
+            }
 			if (day_tmp > 0)
 			{
 				if (everyday_num.at(day_tmp - 1) != 0)  //当天请求数据不为0
@@ -140,13 +142,15 @@ public:
 					return true;
 				}
             }
-
+            lineStream.clear();
             if(debug) cout<<"\n";
             return false;
         }
     }
-
     //~DataHandling();
+
+
+
     bool openFile(const char *filePath)
     {
         ifstream infile(filePath,std::ios::in);
