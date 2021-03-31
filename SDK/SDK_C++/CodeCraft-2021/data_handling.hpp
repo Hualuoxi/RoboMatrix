@@ -51,7 +51,7 @@ private:
     VMData vms_data;
     RequestData req_data;
     int ser_tmp,vm_tmp,req_tmp;
-    int day_tmp=0;
+    
     bool debug;
     int i=1;
     int num=1; 
@@ -60,10 +60,11 @@ public:
     unordered_map <string, ServersData> servers;  //所有服务器
     unordered_map <string, VMData> vms;   //所有虚拟机
     vector<DayRequestData> *requests_all;  //所有天的请求数据
-	int servers_num, vms_num, day_num, k_num; //服务器型号数量  虚拟机型号数量 总天数 提前知晓的天数
+	int servers_num=0, vms_num=0, day_num=0, k_num=0; //服务器型号数量  虚拟机型号数量 总天数 提前知晓的天数
 	bool readed_kday_reqs  = false;  //是否读完k天的请求
 	bool day_read_finished = false;     //是否读取完当天数据
 	bool read_all_finished = false;    //是否读取完所有天数据
+    int day_tmp=0;
     DataHandling(bool _debug=true)
     {
         debug = _debug;

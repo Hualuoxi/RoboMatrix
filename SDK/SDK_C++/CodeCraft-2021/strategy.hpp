@@ -239,30 +239,31 @@ public:
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
-			int id_tmp = dat_req->add_req.at(i).id;
-			vms_ser[id_tmp].vm_id =id_tmp;
-			vms_ser[id_tmp].dealed = false;
-			vms_ser[id_tmp].matched = false;
-			vms_ser[id_tmp].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
-			if (vms_ser[id_tmp].vm.node == 1)
-				vms_node_d.push_back(&vms_ser[id_tmp]);
+			//int id_tmp = dat_req->add_req.at(i).id;
+			vms_ser[dat_req->add_req.at(i).id].vm_id =dat_req->add_req.at(i).id;
+			vms_ser[dat_req->add_req.at(i).id].dealed = false;
+			vms_ser[dat_req->add_req.at(i).id].matched = false;
+			vms_ser[dat_req->add_req.at(i).id].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
+			if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
+				vms_node_d.push_back(&vms_ser[dat_req->add_req.at(i).id]);
 			else
-				vms_node_s.push_back(&vms_ser[id_tmp]);
+				vms_node_s.push_back(&vms_ser[dat_req->add_req.at(i).id]);
 
 		}
+
 		//删除的消息转化为 DelMsg 格式
+		DelMsg msg;
 		for (int i = 0; i < dat_req->del_req.size(); i++)
 		{
-			DelMsg msg;
 			msg.id = dat_req->del_req.at(i).id;
 			msg.dealed = false;
 			del_msg_day[msg.id] = msg;
 		}
 		//排序
-		// quickSort(vms_node_d,0,vms_node_d.size()-1);
-		// quickSort(vms_node_s,0,vms_node_s.size()-1);
-		bubble(vms_node_d);
-		bubble(vms_node_s);
+		quickSort(vms_node_d,0,vms_node_d.size()-1);
+		quickSort(vms_node_s,0,vms_node_s.size()-1);
+		// bubble(vms_node_d);
+		// bubble(vms_node_s);
 		//先将虚拟机放入已有服务器  先双后单
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
@@ -682,7 +683,7 @@ public:
 		int i = begin - 1;
 		for (unsigned int j = begin; j < end;j++)
 		{
-			if((vms[j]->vm.cpu + vms[j]->vm.memory)<=key)
+			if((vms[j]->vm.cpu + vms[j]->vm.memory)>=key)
 			{
 				i++;
 				swap(vms[i],vms[j]);
