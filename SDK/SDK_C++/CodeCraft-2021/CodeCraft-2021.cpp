@@ -1,6 +1,8 @@
 #include "iostream"
 #include "data_handling.hpp"
 #include "strategy.hpp"
+#include <thread>
+#include <mutex>
 
 int main(int argc, char **argv)
 {
@@ -37,12 +39,13 @@ int main(int argc, char **argv)
 
 		strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
 		strategy->coutDayMsg(deal_day_id);
+		//strategy->coutAllSersUsage();
 		//strategy->cout2File(out_file,deal_day_id);
 		deal_day_id++;
 		if (deal_day_id == data_handling->requests_all->size())  //处理完所有数据 
 			break;
 	}
-	//strategy->coutAllSersUsage();
+	//strategy->coutAllCosts();
 	//out_file.close();
 	
 	//system("pause");
