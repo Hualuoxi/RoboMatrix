@@ -65,6 +65,7 @@ public:
 	bool day_read_finished = false;     //是否读取完当天数据
 	bool read_all_finished = false;    //是否读取完所有天数据
     int day_tmp=0;
+    int deal_day_num = 0;
     DataHandling(bool _debug=true)
     {
         debug = _debug;
@@ -91,8 +92,7 @@ public:
             {
                 everyday_num.push_back(stoi(tmp_line));
                 ++day_tmp;
-				 if (day_tmp >= k_num)  
-				 	readed_kday_reqs = true;
+
             }
             ++num;
             return false;
@@ -145,7 +145,12 @@ public:
 						requests_all->at(day_tmp - 1).del_req.push_back(req_data);
 				}
 				if (requests_all->at(day_tmp - 1).day_request.size() == everyday_num.at(day_tmp - 1))
+                {
 					day_read_finished = true;
+                    if (day_tmp >= k_num)  
+				 	    readed_kday_reqs = true;
+                }
+
                 //当读到最后一天的最后一条数据  返回真
 				if (day_tmp == day_num && requests_all->back().day_request.size() == everyday_num.back())
 				{

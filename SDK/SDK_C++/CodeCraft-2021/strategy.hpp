@@ -176,6 +176,11 @@ bool myCompare(OwnServer &p1, OwnServer &p2)
 	return (p1.usage_cpu + p1.usage_mem) > (p2.usage_cpu + p2.usage_mem);		//按二者和排序
 }
 
+bool myCompareByenergy(OwnServer &p1, OwnServer &p2)
+{
+	return  p1.ser.energy_day < p2.ser.energy_day;		//按二者和排序
+}
+
 //拥有的所有服务器
 struct AllServers
 {
@@ -212,7 +217,8 @@ struct AllServers
 	//排序
 	void sort()
 	{
-		using_ser.sort(myCompare);
+		// using_ser.sort(myCompareByenergy);
+		 using_ser.sort(myCompare);
 	}
 
 };
@@ -220,6 +226,7 @@ struct AllServers
 class Strategy
 {
 public:
+	DataHandling *data_hand;
 	Strategy(DataHandling *_data_hand)
 	{
 		data_hand = _data_hand;
@@ -231,10 +238,19 @@ public:
 
 		mig_msgs_day.clear();  //清除上一天数据
 		mig_num_day = 0;
+		unordered_map<int, DelMsg> del_msg_day;   //每日的删除请求
+		DelMsg msg;
+		for (int i = 0; i < dat_req->del_req.size(); i++)
+		{
+			msg.id = dat_req->del_req.at(i).id;
+			msg.dealed = false;
+			del_msg_day[msg.id] = msg;
+		}
 		migration(&mig_msgs_day, _day_id);
 		migLowCPU2Mem(&mig_msgs_day, _day_id);
-
-		unordered_map<int, DelMsg> del_msg_day;   //每日的删除请求
+		// migration(&mig_msgs_day, _day_id);
+		// migDelVm2empSer(&mig_msgs_day,_day_id,del_msg_day);
+		
 		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
@@ -252,13 +268,7 @@ public:
 		}
 
 		//删除的消息转化为 DelMsg 格式
-		DelMsg msg;
-		for (int i = 0; i < dat_req->del_req.size(); i++)
-		{
-			msg.id = dat_req->del_req.at(i).id;
-			msg.dealed = false;
-			del_msg_day[msg.id] = msg;
-		}
+
 		//排序
 		quickSort(vms_node_d,0,vms_node_d.size()-1);
 		quickSort(vms_node_s,0,vms_node_s.size()-1);
@@ -313,7 +323,7 @@ public:
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.5 || it->usage_mem < 0.5) //利用率低  0.6 timeout
+			if (it->usage_cpu < 0.7 || it->usage_mem < 0.7) //利用率低  0.8 timeout
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
@@ -362,14 +372,22 @@ public:
 		int mig_num = 3 * vms_ser.size() / 100;
 		for (auto it1 = own_sers.using_ser.begin(); it1 != own_sers.using_ser.end(); ++it1)
 		{
-			if (it1->usage_mem > 0.85 && it1->usage_cpu > 0.5 && it1->usage_cpu < 0.7)
+			if (it1->usage_mem / it1->usage_cpu > 1.13f)
 			{
 				sers_low_cpu.push_back(&*it1);
 			}
-			if (it1->usage_cpu > 0.85 && it1->usage_mem > 0.5 && it1->usage_mem < 0.7)
+			if (it1->usage_cpu / it1->usage_mem > 1.13f)
 			{
 				sers_low_mem.push_back(&*it1);
 			}
+			// if (it1->usage_mem > 0.85 && it1->usage_cpu > 0.5 && it1->usage_cpu < 0.7)
+			// {
+			// 	sers_low_cpu.push_back(&*it1);
+			// }
+			// if (it1->usage_cpu > 0.85 && it1->usage_mem > 0.5 && it1->usage_mem < 0.7)
+			// {
+			// 	sers_low_mem.push_back(&*it1);
+			// }
 		}
 		if (sers_low_cpu.size() == 0 || sers_low_mem.size() == 0)  return;
 		for (unsigned int i = 0; i < sers_low_cpu.size(); i++)
@@ -561,7 +579,7 @@ public:
 			int c_num = ceil(cpu_sum / data_hand->servers.at(it->first).cpu);  //向上取整
 			int m_num = ceil(mem_sum / data_hand->servers.at(it->first).memory);
 			int _num = (c_num > m_num) ? c_num : m_num;
-			_num += 4;
+			_num = ceil(_num / 0.8f);
 			//数量 * 硬件成本加剩余天数的使用成本
 			int it_cost = _num * (data_hand->servers.at(it->first).hardware_cost + (all_day_num - _day_id) * data_hand->servers.at(it->first).energy_day);
 
@@ -715,7 +733,6 @@ public:
 				//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				//型号及其对应购买数量
 				cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
-
 			}
 		}
 		else
@@ -819,7 +836,7 @@ public:
 	}
 
 private:
-	DataHandling *data_hand;
+	
 	AllServers own_sers;  //拥有的所有服务器              
 	unordered_map<int, VM2Server> vms_ser;    //所有虚拟机及对应服务器  <id,对应服务器>
 	ServersData day_ser_select;    //当天选择的服务器类型

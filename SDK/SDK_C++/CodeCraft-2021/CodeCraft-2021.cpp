@@ -26,7 +26,8 @@ int main(int argc, char **argv)
 	while(true)
 	{
 		mut.lock();
-		if(data_handling->day_tmp > deal_day_id && data_handling->day_read_finished)
+		if(data_handling->readed_kday_reqs &&
+		((data_handling->day_tmp-1) > deal_day_id || (((data_handling->day_tmp-1) == deal_day_id) && data_handling->day_read_finished)))
 		{
 			mut.unlock();
 			strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
