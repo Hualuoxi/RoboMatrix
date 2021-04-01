@@ -5,23 +5,23 @@
 #include <mutex>
 void* read_Req(void* args);
 mutex mut;
+// #define DEBUG
+
 int main(int argc, char **argv)
 {
-	// TODO:read standard input
-	// TODO:process
-	// TODO:write standard output
-	// TODO:fflush(stdout);
-
 	DataHandling *data_handling = new DataHandling(false);
-	// data_handling->openFile("training-1.txt");
 	Strategy *strategy = new Strategy(data_handling);
 	int deal_day_id = 0;
 	//ofstream out_file("output.txt", ios::trunc);
+#ifdef DEBUG
+	data_handling->openFile("/home/hualuoxi//Desktop/CodeCraftRe/RoboMatrix/training-1.txt");
+	ofstream out_CSV("sersUsage.csv", ios::trunc);
+#else
 	pthread_t tids;
 	int ret = pthread_create(&tids, NULL, read_Req, (void*)data_handling);
 	if(0 != ret)
 		cout << "pthread_create error: error_code=" << ret << endl;
-
+#endif
 	//读取所有数据
 	while(true)
 	{
@@ -31,13 +31,21 @@ int main(int argc, char **argv)
 		{
 			mut.unlock();
 			strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
-			strategy->coutDayMsg(deal_day_id);
+			#ifdef DEBUG
+			// if(133 == deal_day_id)
+				out_CSV << "_day_id" <<","<<  "vms_ser"<<","
+					<< "mig_num_day" 
+					<< endl;
+				strategy->coutMsg2CSV(out_CSV,deal_day_id);
+				//strategy->coutAllSersUsage();
+			#else
+				strategy->coutDayMsg(deal_day_id);
+			#endif
+			
 			//strategy->cout2File(out_file,deal_day_id);
 			deal_day_id++;
 		}
 		mut.unlock();
-
-
 		mut.lock();
 		if (deal_day_id && deal_day_id == data_handling->day_num  )   //处理完所有数据 
 			break;
@@ -45,10 +53,7 @@ int main(int argc, char **argv)
 	}
 	// strategy->coutAllCosts();
 	//strategy->coutAllSersUsage();
-	//out_file.close();
-	
-	//system("pause");
-	
+	//out_file.close();	
 	return 0;
 }
 

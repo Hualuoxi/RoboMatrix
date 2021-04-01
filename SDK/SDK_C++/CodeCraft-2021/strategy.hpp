@@ -178,7 +178,12 @@ bool myCompare(OwnServer &p1, OwnServer &p2)
 
 bool myCompareByenergy(OwnServer &p1, OwnServer &p2)
 {
-	return  p1.ser.energy_day < p2.ser.energy_day;		//按二者和排序
+	return  (p1.ser.energy_day/(p1.ser.cpu+p1.ser.memory)/(p1.usage_cpu + p1.usage_mem) < p2.ser.energy_day/(p2.ser.cpu+p2.ser.memory)/(p2.usage_cpu + p2.usage_mem));		//按二者和排序
+}
+
+bool myCompareByUsageRat(OwnServer &p1, OwnServer &p2)
+{
+	return  fabs(p1.usage_cpu - p1.usage_mem) > fabs(p2.usage_cpu - p2.usage_mem);		//按二者和排序
 }
 
 //拥有的所有服务器
@@ -220,6 +225,10 @@ struct AllServers
 		// using_ser.sort(myCompareByenergy);
 		 using_ser.sort(myCompare);
 	}
+	void sortbyUsageRat()
+	{
+		 using_ser.sort(myCompareByUsageRat);
+	}
 
 };
 
@@ -246,8 +255,20 @@ public:
 			msg.dealed = false;
 			del_msg_day[msg.id] = msg;
 		}
-		migration(&mig_msgs_day, _day_id);
-		migLowCPU2Mem(&mig_msgs_day, _day_id);
+		float del_rat = (float)(data_hand->requests_all->at(_day_id).del_req.size()) /(float)(data_hand->requests_all->at(_day_id).day_request.size());
+		if(del_rat < 0.7f)
+		{
+			own_sers.sortbyUsageRat();
+			migLowCPU2Mem(&mig_msgs_day, _day_id,1.1);
+			own_sers.sort();
+			migration(&mig_msgs_day, _day_id);
+		}
+		else
+		{
+			migration(&mig_msgs_day, _day_id);
+			migLowCPU2Mem(&mig_msgs_day, _day_id,1.13);
+		}
+
 		// migration(&mig_msgs_day, _day_id);
 		// migDelVm2empSer(&mig_msgs_day,_day_id,del_msg_day);
 		
@@ -366,17 +387,17 @@ public:
 		//cout << "mig_num: "<< mig_num << "  "<< vms_ser.size() <<"  "<< vms_ser.size()*5 /1000 <<"\n";
 	}
 
-	void migLowCPU2Mem(vector<MigrationMsg> *mig_msg, int _day_id)
+	void migLowCPU2Mem(vector<MigrationMsg> *mig_msg, int _day_id , float rat)
 	{
 		vector<OwnServer*> sers_low_cpu, sers_low_mem;  //
 		int mig_num = 3 * vms_ser.size() / 100;
 		for (auto it1 = own_sers.using_ser.begin(); it1 != own_sers.using_ser.end(); ++it1)
 		{
-			if (it1->usage_mem / it1->usage_cpu > 1.13f)
+			if (it1->usage_mem / it1->usage_cpu > rat)
 			{
 				sers_low_cpu.push_back(&*it1);
 			}
-			if (it1->usage_cpu / it1->usage_mem > 1.13f)
+			if (it1->usage_cpu / it1->usage_mem > rat)
 			{
 				sers_low_mem.push_back(&*it1);
 			}
@@ -818,6 +839,19 @@ public:
 		}
 		coutAllCosts();
 	}
+	
+	void coutMsg2CSV(ofstream &out_CSV ,int _day_id)
+	{
+
+		out_CSV << _day_id <<","<< (3 * vms_ser.size() / 100) <<","
+			    << mig_num_day << endl;
+		//输出每日请求的删除率
+		// out_CSV << _day_id << "," << (float)(data_hand->requests_all->at(_day_id).del_req.size()) /(float)(data_hand->requests_all->at(_day_id).day_request.size()) << endl;
+		// for (auto iter = own_sers.using_ser.begin(); iter != own_sers.using_ser.end(); iter++)
+		// {
+		// 	out_CSV <<  iter->usage_cpu << "," << iter->usage_mem << endl;
+		// }
+	}
 
 	void coutAllCosts()
 	{
@@ -833,6 +867,7 @@ public:
 		cout << "all_day_use_cost:" << all_costs - hard_cost << "\n";
 
 		cout << "all_sers_num :" << own_sers.using_ser.size() << "\n";
+		cout << "all_vm_num :" << vms_ser.size()<< "\n";
 	}
 
 private:
