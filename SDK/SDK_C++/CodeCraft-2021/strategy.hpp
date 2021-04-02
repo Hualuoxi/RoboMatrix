@@ -248,6 +248,7 @@ public:
 		// migDelVm2empSer(&mig_msgs_day,_day_id,del_msg_day);
 		
 		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
+		vector<VM2Server*> vms_node_s_unused, vms_node_d_unused,vms_node_unused;
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -263,44 +264,55 @@ public:
 
 		}
 
-		//删除的消息转化为 DelMsg 格式
-		for (int i = 0; i < dat_req->del_req.size(); i++)
-		{
-			DelMsg msg;
-			msg.id = dat_req->del_req.at(i).id;
-			msg.dealed = false;
-			del_msg_day[msg.id] = msg;
-		}
-		
 		//排序
 		quickSort(vms_node_d,0,vms_node_d.size()-1);
 		quickSort(vms_node_s,0,vms_node_s.size()-1);
-		// bubble(vms_node_d);
-		// bubble(vms_node_s);
+		//bubble(vms_node_d);
+		//bubble(vms_node_s);
 		//先将虚拟机放入已有服务器  先双后单
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
-			addVm2Ser(vms_node_d.at(j), false,nullptr, _day_id);		
+			addVm2Ser(vms_node_d.at(j), false,nullptr, _day_id);
+			if(vms_node_d.at(j)->dealed == false){
+				vms_node_unused.push_back(vms_node_d.at(j));
+				vms_node_d_unused.push_back( vms_node_d.at(j));
+			}
 		}
+		
+		ServersData _day_select;
+		day_ser_select.clear();
+
+		if(vms_node_d_unused.size()>0) 
+		{
+			_day_select = selectSer(&vms_node_d_unused, _day_id);
+			day_ser_select.push_back( _day_select );
+			for (int j = 0; j < vms_node_d_unused.size(); j++)
+			{
+				addVm2Ser(vms_node_d_unused.at(j), true,&_day_select , _day_id);
+			}
+		}
+
 		for (int j = 0; j < vms_node_s.size(); j++)
 		{
 			addVm2Ser(vms_node_s.at(j), false,nullptr, _day_id);
+			if(vms_node_s.at(j)->dealed == false){		
+				vms_node_unused.push_back(vms_node_s.at(j));
+				vms_node_s_unused.push_back( vms_node_s.at(j));
+			}
 		}
-		day_ser_select.clear();
-		day_ser_select.push_back( selectSer(&vms_node_d, _day_id) );
-		day_ser_select.push_back( selectSer(&vms_node_s, _day_id) );
 
-		//
-		for (int j = 0; j < vms_node_d.size(); j++)
+		if(vms_node_s_unused.size()>0) 
 		{
-			addVm2Ser(vms_node_d.at(j), true, &day_ser_select.at(0) , _day_id);
-		}
-		for (int j = 0; j < vms_node_s.size(); j++)
-		{
-			addVm2Ser(vms_node_s.at(j), true, &day_ser_select.at(1) , _day_id);
+			_day_select =  selectSer(&vms_node_s_unused, _day_id);
+			day_ser_select.push_back(_day_select );
+			for (int j = 0; j < vms_node_s_unused.size(); j++)
+			{
+				if (vms_node_s_unused.at(j)->dealed == false)
+					addVm2Ser(vms_node_s_unused.at(j), true, &_day_select , _day_id);
+			}
 		}
 
-
+		
 		// //将剩下的虚拟机放入服务器  先双后单
 		// for (int j = 0; j < vms_node_d.size(); j++)
 		// {
@@ -319,7 +331,6 @@ public:
 			if (del_msg_day.at(it->first).dealed == false)
 				delVm(&del_msg_day.at(it->first), _day_id);
 		}
-
 		//服务器排序
 		own_sers.sort();
 	}
@@ -670,6 +681,7 @@ public:
 	//添加虚拟机到服务器 add_new_ser:如果没有空间，是否申请新服务器
 	void addVm2Ser(VM2Server *_vm2ser, bool add_new_ser,ServersData *ser_type, int _day_id)
 	{
+		if(_vm2ser->dealed == true) return;
 		bool inset_success = false;
 
 		//判断使用中服务器中是否有空闲位置
@@ -792,7 +804,7 @@ public:
 		if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
 		{
 			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
-			for(int i=0 ; i<day_ser_select.size(); i++)
+			for(int i=0 ; i<own_sers.pur_sers.at(_day_id).size(); i++)
 			{
 				//型号及其对应购买数量
 				if(own_sers.pur_sers.at(_day_id).find(day_ser_select.at(i).server_type) != own_sers.pur_sers.at(_day_id).end())

@@ -43,11 +43,22 @@ int main(int argc, char **argv)
 			break;
 		mut.unlock();
 	}
-	 strategy->coutAllCosts();
-	//strategy->coutAllSersUsage();
-	//out_file.close();
-	
-	//system("pause");
+	//strategy->coutAllCosts();
+
+	// string str_line;
+	// while(getline(cin,str_line))
+	// {
+	// 	//cout<<"str_line.length: "<< str_line.length()<<endl;
+	// 	if(str_line.length() > 0)
+	// 		if(data_handling->dealLineData(str_line))
+	// 			break;
+	// }
+	// for (int i = 0; i < data_handling->requests_all->size(); i++)
+	// {
+	// 	strategy->dealDayReq(&data_handling->requests_all->at(i), i);
+	// 	strategy->coutDayMsg(i);
+	// }
+	// strategy->coutAllCosts();
 	
 	return 0;
 }
