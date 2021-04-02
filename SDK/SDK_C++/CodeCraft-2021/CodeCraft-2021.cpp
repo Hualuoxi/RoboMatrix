@@ -1,9 +1,10 @@
-#include "iostream"
+#include <iostream>
 #include "data_handling.hpp"
 #include "strategy.hpp"
 #include <thread>
 #include <mutex>
-
+void* read_Req(void* args);
+mutex mut;
 int main(int argc, char **argv)
 {
 	// TODO:read standard input
@@ -12,42 +13,59 @@ int main(int argc, char **argv)
 	// TODO:fflush(stdout);
 
 	DataHandling *data_handling = new DataHandling(false);
-	//data_handling->openFile("training-1.txt");
-
+	// data_handling->openFile("training-1.txt");
 	Strategy *strategy = new Strategy(data_handling);
 	int deal_day_id = 0;
 	//ofstream out_file("output.txt", ios::trunc);
+	pthread_t tids;
+	int ret = pthread_create(&tids, NULL, read_Req, (void*)data_handling);
+	if(0 != ret)
+		cout << "pthread_create error: error_code=" << ret << endl;
 
 	//读取所有数据
-	string str_line;
 	while(true)
 	{
-		while (!data_handling->read_all_finished && getline(cin, str_line) )
+		mut.lock();
+		if(data_handling->readed_kday_reqs &&
+		((data_handling->day_tmp-1) > deal_day_id || (((data_handling->day_tmp-1) == deal_day_id) && data_handling->day_read_finished)))
 		{
-			if (str_line.length() > 0)
-			{
-				if (!data_handling->dealLineData(str_line))
-				{
-					if (!data_handling->readed_kday_reqs) continue;  //没有读完k天的数据
-					if (data_handling->day_read_finished)    //读完当天的数据
-						break;   //跳出读取循环
-				}
-				else
-					break;
-			}
+			mut.unlock();
+			strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
+			strategy->coutDayMsg(deal_day_id);
+			//strategy->cout2File(out_file,deal_day_id);
+			deal_day_id++;
 		}
+		mut.unlock();
 
-		strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
-		strategy->coutDayMsg(deal_day_id);
-		//strategy->coutAllSersUsage();
-		//strategy->cout2File(out_file,deal_day_id);
-		deal_day_id++;
-		if (deal_day_id == data_handling->requests_all->size())  //处理完所有数据 
+
+		mut.lock();
+		if (deal_day_id && deal_day_id == data_handling->day_num  )   //处理完所有数据 
 			break;
+		mut.unlock();
 	}
-	//strategy->coutAllCosts();
+	 strategy->coutAllCosts();
+	//strategy->coutAllSersUsage();
 	//out_file.close();
 	
 	//system("pause");
+	
 	return 0;
+}
+
+
+void* read_Req(void* args)
+{
+	// cout << "this is thread read_Req" << endl;
+	DataHandling* data_handling = nullptr;
+	data_handling = (DataHandling*)args;
+	string str_line;
+	while (!data_handling->read_all_finished)
+	{
+		getline(cin, str_line);
+		mut.lock();
+		data_handling->dealLineData(str_line);
+		mut.unlock();
+	}
+	pthread_exit(NULL);
+    return 0;
 }

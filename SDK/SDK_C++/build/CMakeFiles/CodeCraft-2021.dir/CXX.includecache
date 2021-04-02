@@ -8,11 +8,15 @@
 
 /home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/CodeCraft-2021.cpp
 iostream
-/home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/iostream
+-
 data_handling.hpp
 /home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
 strategy.hpp
 /home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/strategy.hpp
+thread
+-
+mutex
+-
 
 /home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
 unordered_map
@@ -33,8 +37,6 @@ data_handling.hpp
 /home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
 list
 -
-math.h
-/home/xu/Desktop/RoboMatrix/SDK/SDK_C++/CodeCraft-2021/math.h
 cmath
 -
 time.h

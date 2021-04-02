@@ -6,6 +6,13 @@ SDK/SDK_C++/bin/CodeCraft-2021
 
 3 压缩
 bash SDK/SDK_C++/CodeCraft_zip.sh
+4 转移
+sudo rm /sharefile/CodeCraft-2021.zip
+sudo cp /home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/CodeCraft-2021.zip /sharefile
 
-4 运行判断程序
+
+5 运行判断程序
 judge/bin/judge
+
+6
+Desktop/CodeCraftRe/RoboMatrix/SDK/SDK_C++/bin/CodeCraft-2021 

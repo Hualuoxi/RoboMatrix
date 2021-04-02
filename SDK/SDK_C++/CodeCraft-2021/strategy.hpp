@@ -3,7 +3,6 @@
 
 #include "data_handling.hpp"
 #include <list>
-#include "math.h"
 #include <cmath>
 #include <time.h>
 
@@ -75,66 +74,33 @@ struct OwnServer
 		}
 		else  // 单节点
 		{
-			if((cpu_A_left + memory_A_left) >= (cpu_B_left + memory_B_left))
+			if (cpu_A_left >= _vm->vm.cpu  &&  memory_A_left >= _vm->vm.memory)
 			{
-				if (cpu_A_left >= _vm->vm.cpu  &&  memory_A_left >= _vm->vm.memory)
-				{
-					_vm->a_b = 0;
-					cpu_A_left -= _vm->vm.cpu;
-					memory_A_left -= _vm->vm.memory;
-					usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
-					usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
-					if (day_start == 0)  day_start = _day_id; //记录起始天
-					unused = false;
-					vms.push_back(_vm);
-					return true;
-				}
-				else if (cpu_B_left >= _vm->vm.cpu && memory_B_left >= _vm->vm.memory)
-				{
-					_vm->a_b = 1;
-					cpu_B_left -= _vm->vm.cpu;
-					memory_B_left -= _vm->vm.memory;
-					usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
-					usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
-					if (day_start == 0)
-						day_start = _day_id; //记录起始天
-					unused = false;
-					vms.push_back(_vm);
-					return true;
-				}
-				else
-					return false;
+				_vm->a_b = 0;
+				cpu_A_left -= _vm->vm.cpu;
+				memory_A_left -= _vm->vm.memory;
+				usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
+				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
+				if (day_start == 0)  day_start = _day_id; //记录起始天
+				unused = false;
+				vms.push_back(_vm);
+				return true;
 			}
-			if((cpu_A_left + memory_A_left) < (cpu_B_left + memory_B_left))
+			else if (cpu_B_left >= _vm->vm.cpu && memory_B_left >= _vm->vm.memory)
 			{
-				if (cpu_B_left >= _vm->vm.cpu && memory_B_left >= _vm->vm.memory)
-				{
-					_vm->a_b = 1;
-					cpu_B_left -= _vm->vm.cpu;
-					memory_B_left -= _vm->vm.memory;
-					usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
-					usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
-					if (day_start == 0)
-						day_start = _day_id; //记录起始天
-					unused = false;
-					vms.push_back(_vm);
-					return true;
-				}
-				else if (cpu_A_left >= _vm->vm.cpu  &&  memory_A_left >= _vm->vm.memory)
-				{
-					_vm->a_b = 0;
-					cpu_A_left -= _vm->vm.cpu;
-					memory_A_left -= _vm->vm.memory;
-					usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
-					usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
-					if (day_start == 0)  day_start = _day_id; //记录起始天
-					unused = false;
-					vms.push_back(_vm);
-					return true;
-				}
-				else
-					return false;
+				_vm->a_b = 1;
+				cpu_B_left -= _vm->vm.cpu;
+				memory_B_left -= _vm->vm.memory;
+				usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
+				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
+				if (day_start == 0)
+					day_start = _day_id; //记录起始天
+				unused = false;
+				vms.push_back(_vm);
+				return true;
 			}
+			else
+				return false;
 		}
 	}
 	//去掉虚拟机  
@@ -207,8 +173,10 @@ struct MigrationMsg
 
 bool myCompare(OwnServer &p1, OwnServer &p2)
 {
-	return (p1.usage_cpu + p1.usage_mem) > (p2.usage_cpu + p2.usage_mem);		//按二者和排序
+	return (p1.usage_cpu + p1.usage_mem) > (p2.usage_cpu + p2.usage_mem);		//按二者和排序 大到小
+	//return (p1.ser.energy_day/(p1.usage_cpu + p1.usage_mem)) < (p2.ser.energy_day/(p2.usage_cpu + p2.usage_mem));		//日成本 小到大
 }
+
 
 //拥有的所有服务器
 struct AllServers
@@ -254,6 +222,7 @@ struct AllServers
 class Strategy
 {
 public:
+	DataHandling *data_hand;
 	Strategy(DataHandling *_data_hand)
 	{
 		data_hand = _data_hand;
@@ -265,19 +234,35 @@ public:
 
 		mig_msgs_day.clear();  //清除上一天数据
 		mig_num_day = 0;
-		mig_sers.clear();
+		unordered_map<int, DelMsg> del_msg_day;   //每日的删除请求
+		DelMsg msg;
+		for (int i = 0; i < dat_req->del_req.size(); i++)
+		{
+			msg.id = dat_req->del_req.at(i).id;
+			msg.dealed = false;
+			del_msg_day[msg.id] = msg;
+		}
 		migration(&mig_msgs_day, _day_id);
 		migLowCPU2Mem(&mig_msgs_day, _day_id);
-
-		unordered_map<int, DelMsg> del_msg_day;   //每日的删除请求
+		//migrationCost(&mig_msgs_day, _day_id);
+		// migDelVm2empSer(&mig_msgs_day,_day_id,del_msg_day);
+		
+		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
-			vms_ser[dat_req->add_req.at(i).id].vm_id = dat_req->add_req.at(i).id;
+			//int id_tmp = dat_req->add_req.at(i).id;
+			vms_ser[dat_req->add_req.at(i).id].vm_id =dat_req->add_req.at(i).id;
 			vms_ser[dat_req->add_req.at(i).id].dealed = false;
 			vms_ser[dat_req->add_req.at(i).id].matched = false;
 			vms_ser[dat_req->add_req.at(i).id].vm = data_hand->vms.at(dat_req->add_req.at(i).vm_type);
+			if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
+				vms_node_d.push_back(&vms_ser[dat_req->add_req.at(i).id]);
+			else
+				vms_node_s.push_back(&vms_ser[dat_req->add_req.at(i).id]);
+
 		}
+
 		//删除的消息转化为 DelMsg 格式
 		for (int i = 0; i < dat_req->del_req.size(); i++)
 		{
@@ -286,41 +271,47 @@ public:
 			msg.dealed = false;
 			del_msg_day[msg.id] = msg;
 		}
-
-		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
-		for (int i = 0; i < dat_req->add_req.size(); i++)
-		{
-			if (vms_ser[dat_req->add_req.at(i).id].vm.node == 1)
-				vms_node_d.push_back(&vms_ser[dat_req->add_req.at(i).id]);
-			else
-				vms_node_s.push_back(&vms_ser[dat_req->add_req.at(i).id]);
-		}
+		
 		//排序
-		bubble(vms_node_d);
-		bubble(vms_node_s);
+		quickSort(vms_node_d,0,vms_node_d.size()-1);
+		quickSort(vms_node_s,0,vms_node_s.size()-1);
+		// bubble(vms_node_d);
+		// bubble(vms_node_s);
 		//先将虚拟机放入已有服务器  先双后单
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
-			addVm2Ser(vms_node_d.at(j), false, _day_id);
+			addVm2Ser(vms_node_d.at(j), false,nullptr, _day_id);		
 		}
 		for (int j = 0; j < vms_node_s.size(); j++)
 		{
-			addVm2Ser(vms_node_s.at(j), false, _day_id);
+			addVm2Ser(vms_node_s.at(j), false,nullptr, _day_id);
 		}
+		day_ser_select.clear();
+		day_ser_select.push_back( selectSer(&vms_node_d, _day_id) );
+		day_ser_select.push_back( selectSer(&vms_node_s, _day_id) );
 
-		selectSer(dat_req, _day_id);
-
-		//将剩下的虚拟机放入服务器  先双后单
+		//
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
-			if (vms_node_d.at(j)->dealed == false)
-				addVm2Ser(vms_node_d.at(j), true, _day_id);
+			addVm2Ser(vms_node_d.at(j), true, &day_ser_select.at(0) , _day_id);
 		}
 		for (int j = 0; j < vms_node_s.size(); j++)
 		{
-			if (vms_node_s.at(j)->dealed == false)
-				addVm2Ser(vms_node_s.at(j), true, _day_id);
+			addVm2Ser(vms_node_s.at(j), true, &day_ser_select.at(1) , _day_id);
 		}
+
+
+		// //将剩下的虚拟机放入服务器  先双后单
+		// for (int j = 0; j < vms_node_d.size(); j++)
+		// {
+		// 	if (vms_node_d.at(j)->dealed == false)
+		// 		addVm2Ser(vms_node_d.at(j), true, _day_id);
+		// }
+		// for (int j = 0; j < vms_node_s.size(); j++)
+		// {
+		// 	if (vms_node_s.at(j)->dealed == false)
+		// 		addVm2Ser(vms_node_s.at(j), true, _day_id);
+		// }
 
 		// //处理剩下的删除请求
 		for (auto it = del_msg_day.begin(); it != del_msg_day.end(); ++it)
@@ -335,32 +326,33 @@ public:
 
 	void migration(vector<MigrationMsg> *mig_msg, int _day_id)
 	{
-		
+		unordered_map<int, OwnServer*> mig_sers; //迁移的服务器或者空闲的 之后就不往里面迁移了
+		int mig_num = 3 * vms_ser.size() / 100;
 		if (own_sers.using_ser.size() == 0) return;
 
 		for (auto it = --own_sers.using_ser.end(); it != own_sers.using_ser.begin(); it--)
 		{
-			if (mig_num_day >= (3 * vms_ser.size() / 100))
+			if (mig_num_day >= mig_num)
 				break;
 			if (it->usage_cpu == 0 || it->usage_mem == 0)
 			{
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.59 || it->usage_mem < 0.59) //利用率低  
+			if (it->usage_cpu < 0.7 || it->usage_mem < 0.7) //利用率低  0.8 timeout
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
 				for (auto it_vm = it->vms.begin(); it_vm != it->vms.end(); ++it_vm)
 				{
-					if (mig_num_day >= (3 * vms_ser.size() / 100))
+					if (mig_num_day >= mig_num)
 						break;
 					bool inset_success = false;
 					for (auto it2 = own_sers.using_ser.begin(); it2 != own_sers.using_ser.end(); ++it2)
 					{
 						if (mig_sers.find(it2->id) == mig_sers.end())   //不在迁移表中
 						{
-							if (mig_num_day >= (3 * vms_ser.size() / 100))
+							if (mig_num_day >= mig_num)
 								break;
 							(*it_vm)->a_b_mig = (*it_vm)->a_b;
 							inset_success = it2->insertVM(*it_vm, _day_id);
@@ -393,31 +385,40 @@ public:
 	void migLowCPU2Mem(vector<MigrationMsg> *mig_msg, int _day_id)
 	{
 		vector<OwnServer*> sers_low_cpu, sers_low_mem;  //
+		int mig_num = 3 * vms_ser.size() / 100;
 		for (auto it1 = own_sers.using_ser.begin(); it1 != own_sers.using_ser.end(); ++it1)
 		{
-			if (it1->usage_mem > 0.8 && it1->usage_cpu < 0.75)
+			if (it1->usage_mem / it1->usage_cpu > 1.13f)
 			{
 				sers_low_cpu.push_back(&*it1);
 			}
-			if (it1->usage_cpu > 0.8 && it1->usage_mem < 0.75)
+			if (it1->usage_cpu / it1->usage_mem > 1.13f)
 			{
 				sers_low_mem.push_back(&*it1);
 			}
+			// if (it1->usage_mem > 0.85 && it1->usage_cpu > 0.5 && it1->usage_cpu < 0.7)
+			// {
+			// 	sers_low_cpu.push_back(&*it1);
+			// }
+			// if (it1->usage_cpu > 0.85 && it1->usage_mem > 0.5 && it1->usage_mem < 0.7)
+			// {
+			// 	sers_low_mem.push_back(&*it1);
+			// }
 		}
 		if (sers_low_cpu.size() == 0 || sers_low_mem.size() == 0)  return;
 		for (unsigned int i = 0; i < sers_low_cpu.size(); i++)
 		{
-			if (mig_num_day >= (3 * vms_ser.size() / 100))
+			if (mig_num_day >= mig_num)
 				break;
 			vector<VM2Server*> vms_remove;
 			for (auto it_vm = sers_low_cpu.at(i)->vms.begin(); it_vm != sers_low_cpu.at(i)->vms.end(); ++it_vm)
 			{
-				if (mig_num_day >= (3 * vms_ser.size() / 100))
+				if (mig_num_day >= mig_num)
 					break;
 				bool inset_success = false;
 				for (unsigned int j = 0; j < sers_low_mem.size(); j++)
 				{
-					if (mig_num_day >= (3 * vms_ser.size() / 100))
+					if (mig_num_day >= mig_num)
 						break;
 					(*it_vm)->a_b_mig = (*it_vm)->a_b;
 					inset_success = sers_low_mem.at(j)->insertVM(*it_vm, _day_id);
@@ -445,17 +446,17 @@ public:
 
 		for (unsigned int i = 0; i < sers_low_mem.size(); i++)
 		{
-			if (mig_num_day >= (3 * vms_ser.size() / 100))
+			if (mig_num_day >= mig_num)
 				break;
 			vector<VM2Server*> vms_remove;
 			for (auto it_vm = sers_low_mem.at(i)->vms.begin(); it_vm != sers_low_mem.at(i)->vms.end(); ++it_vm)
 			{
-				if (mig_num_day >= (3 * vms_ser.size() / 100))
+				if (mig_num_day >= mig_num)
 					break;
 				bool inset_success = false;
 				for (unsigned int j = 0; j < sers_low_cpu.size(); j++)
 				{
-					if (mig_num_day >= (3 * vms_ser.size() / 100))
+					if (mig_num_day >= mig_num)
 						break;
 					(*it_vm)->a_b_mig = (*it_vm)->a_b;
 					inset_success = sers_low_cpu.at(j)->insertVM(*it_vm, _day_id);
@@ -483,50 +484,166 @@ public:
 
 	}
 
-	//根据每天没有处理过的虚拟机数据总和 选择服务器
-	void selectSer(DayRequestData *dat_req, int _day_id)
+	void migDelVm2empSer(vector<MigrationMsg> *mig_msg,int _day_id,unordered_map<int,DelMsg> del_msg)
 	{
-		max_cpu = max_mem = 0;
-		//查找当天没有处理过的虚拟机数据最大cpu
-		for (int i = 0; i < dat_req->add_req.size(); i++)
+		vector<OwnServer*> sers_emp;
+		unordered_map<int,OwnServer*> sers_old;
+		vector<VM2Server*> vms_remove;
+		int mig_num = 3 * vms_ser.size() / 100;
+		//找到没有使用的服务器作为目标服务器
+		for (auto it = --own_sers.using_ser.end(); it!= own_sers.using_ser.begin(); --it)
 		{
-			if (vms_ser[dat_req->add_req.at(i).id].dealed == false)
+			if(it->usage_cpu ==0 || it->usage_mem ==0)
 			{
-				if (vms_ser[dat_req->add_req.at(i).id].vm.node == 0) //单节点cpu memory 按两倍算
+				sers_emp.push_back(&*it);
+			}
+			else
+				break;
+		}
+		if(sers_emp.size()==0) return;
+		for (unsigned int j=0; j<sers_emp.size();j++)
+		{		
+			if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+				break;
+			bool inset_success = false;
+			if(del_msg.size() == 0) break;
+
+			for (auto it_del_id = del_msg.begin(); it_del_id != del_msg.end(); ++it_del_id)
+			{
+				
+				if (mig_num_day >= ( 5*vms_ser.size() /1000 ) )
+					break;
+				if(!it_del_id->second.dealed)
 				{
-					if (max_cpu < 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
-						max_cpu = 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
-					if (max_mem < 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
-						max_mem = 2 * data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
-				}
-				else
-				{
-					if (max_cpu < data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu)
-						max_cpu = data_hand->vms.at(dat_req->add_req.at(i).vm_type).cpu;
-					if (max_mem < data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory)
-						max_mem = data_hand->vms.at(dat_req->add_req.at(i).vm_type).memory;
-				}
+					VM2Server* it_vm = &vms_ser.at(it_del_id->second.id);
+					it_vm->a_b_mig = it_vm->a_b;
+					inset_success = sers_emp.at(j)->insertVM(it_vm, _day_id);
+					if (inset_success)
+					{
+						// cout <<"1 " <<endl;
+						MigrationMsg mig;
+						mig.vm_id = it_vm->vm_id;
+						mig.aim_id = sers_emp.at(j)->id;
+						mig.a_b = it_vm->a_b;
+						mig_msg->push_back(mig);
+						// cout <<"2 " <<endl;
+						it_del_id->second.dealed=true;
+						// cout <<"3 " <<endl;
+						//循环的时候不能删除元素  记录下来
+						sers_old.insert({it_del_id->second.id,it_vm->own_ser});
+						vms_remove.push_back(it_vm);
+						// cout <<"11 " <<sers_old[it_del_id->second.id]->ser.server_type<<" " << it_vm->own_ser->ser.server_type <<endl;
+						it_vm->own_ser = sers_emp.at(j);
+						// cout <<"22 " << sers_old[it_del_id->second.id]->ser.server_type<<" " << it_vm->own_ser->ser.server_type <<endl;
+						mig_num_day++;
+						
+					}
+					else
+					{
+						break;
+					}
+				}	
 			}
 		}
+		for(int s=0 ;s < vms_remove.size() ;s++)
+		{
+			sers_old.at(vms_remove.at(s)->vm_id)->removeVM(vms_remove.at(s),vms_remove.at(s)->a_b_mig , _day_id);	
+		}
+		
+	}
 
+	void migrationCost(vector<MigrationMsg> *mig_msg, int _day_id)
+	{
+		unordered_map<int, OwnServer*> mig_sers; //迁移的服务器 之后就不往里面迁移了
+		int mig_num = 3 * vms_ser.size() / 100;
+		if (own_sers.using_ser.size() == 0) return;
+
+		for (auto it = --own_sers.using_ser.end(); it != own_sers.using_ser.begin(); it--)
+		{
+			if (mig_num_day >= mig_num)
+				break;
+			
+			mig_sers[it->id] = &*it;
+			vector<VM2Server*> vms_remove;
+			for (auto it_vm = it->vms.begin(); it_vm != it->vms.end(); ++it_vm)
+			{
+				if (mig_num_day >= mig_num)
+					break;
+				bool inset_success = false;
+				for (auto it2 = own_sers.using_ser.begin(); it2 != own_sers.using_ser.end(); ++it2)
+				{
+					if(it2->usage_cpu > 0.95 || it2->usage_mem > 0.95) continue;
+					if (mig_sers.find(it2->id) == mig_sers.end())   //不在迁移表中
+					{
+						if (mig_num_day >= mig_num)
+							break;
+						(*it_vm)->a_b_mig = (*it_vm)->a_b;
+						inset_success = it2->insertVM(*it_vm, _day_id);
+						if (inset_success)
+						{
+							MigrationMsg mig;
+							mig.vm_id = (*it_vm)->vm_id;
+							mig.aim_id = it2->id;
+							mig.a_b = (*it_vm)->a_b;
+							mig_msg->push_back(mig);
+
+							(*it_vm)->own_ser = &*it2;
+							//循环的时候不能删除元素  记录下来
+							vms_remove.push_back(*it_vm);
+							mig_num_day++;
+							break;
+						}
+					}
+				}
+			}
+			for (int i = 0; i < vms_remove.size(); i++)
+			{
+				it->removeVM(vms_remove.at(i), vms_remove.at(i)->a_b_mig, _day_id);
+			}
+			
+		}
+		//cout << "mig_num: "<< mig_num << "  "<< vms_ser.size() <<"  "<< vms_ser.size()*5 /1000 <<"\n";
+	}
+
+
+	//根据每天没有处理过的虚拟机数据总和 选择服务器
+	ServersData selectSer(vector<VM2Server*> *vms, int _day_id)
+	{
+		max_cpu = max_mem = 0;
 		float cpu_sum = 0, mem_sum = 0;
 		int num = 0, cost = 0;
 		string _type;
-		for (int i = 0; i < dat_req->add_req.size(); i++)
+		//查找当天没有处理过的虚拟机数据最大cpu
+		for (int i = 0; i < vms->size(); i++)
 		{
-			if (vms_ser.at(dat_req->add_req.at(i).id).dealed == false)
+			if (vms->at(i)->dealed == false)
 			{
-				cpu_sum += vms_ser.at(dat_req->add_req.at(i).id).vm.cpu;
-				mem_sum += vms_ser.at(dat_req->add_req.at(i).id).vm.memory;
+				if (vms->at(i)->vm.node == 0) //单节点cpu memory 按两倍算
+				{
+					if (max_cpu < 2 * vms->at(i)->vm.cpu)
+						max_cpu = 2 * vms->at(i)->vm.cpu;
+					if (max_mem < 2 * vms->at(i)->vm.memory)
+						max_mem = 2 * vms->at(i)->vm.memory;
+				}
+				else
+				{
+					if (max_cpu < vms->at(i)->vm.cpu)
+						max_cpu = vms->at(i)->vm.cpu;
+					if (max_mem < vms->at(i)->vm.memory)
+						max_mem = vms->at(i)->vm.memory;
+				}
+				cpu_sum += vms->at(i)->vm.cpu;
+				mem_sum += vms->at(i)->vm.memory;
 			}
 		}
+
 		//根据每日成本最小查找
 		for (auto it = data_hand->servers.begin(); it != data_hand->servers.end(); ++it)
 		{
 			int c_num = ceil(cpu_sum / data_hand->servers.at(it->first).cpu);  //向上取整
 			int m_num = ceil(mem_sum / data_hand->servers.at(it->first).memory);
 			int _num = (c_num > m_num) ? c_num : m_num;
-			_num += 5;
+			_num = ceil(_num / 0.8f);
 			//数量 * 硬件成本加剩余天数的使用成本
 			int it_cost = _num * (data_hand->servers.at(it->first).hardware_cost + (all_day_num - _day_id) * data_hand->servers.at(it->first).energy_day);
 
@@ -547,11 +664,11 @@ public:
 				}
 			}
 		}
-		day_ser_select = data_hand->servers.at(_type);
+		return  data_hand->servers.at(_type);
 	}
 
 	//添加虚拟机到服务器 add_new_ser:如果没有空间，是否申请新服务器
-	void addVm2Ser(VM2Server *_vm2ser, bool add_new_ser, int _day_id)
+	void addVm2Ser(VM2Server *_vm2ser, bool add_new_ser,ServersData *ser_type, int _day_id)
 	{
 		bool inset_success = false;
 
@@ -571,7 +688,7 @@ public:
 		if (!inset_success)  //没有成功加入虚拟机  空间不足  申请新的服务器
 		{
 			bool inset_success2 = false;
-			own_sers.addSer(day_ser_select, _day_id);  //添加服务器
+			own_sers.addSer(*ser_type, _day_id);  //添加服务器
 			inset_success2 = own_sers.using_ser.back().insertVM(_vm2ser, _day_id);
 			if (inset_success2)
 			{
@@ -641,6 +758,33 @@ public:
 		}
 	}
 
+	//快速排序  按cpu与mem的和  由大到小排序
+	int partition(vector<VM2Server*> &vms , int begin , int end)
+	{
+		int key = vms[end]->vm.cpu + vms[end]->vm.memory;
+		int i = begin - 1;
+		for (unsigned int j = begin; j < end;j++)
+		{
+			if((vms[j]->vm.cpu + vms[j]->vm.memory)>=key)
+			{
+				i++;
+				swap(vms[i],vms[j]);
+			}
+		}
+		swap(vms[i+1],vms[end]);
+		return (i + 1);
+	}
+	void quickSort(vector<VM2Server*> &vms, int begin , int end)
+	{
+		int ret = 0;
+		if(begin < end)
+			{
+				ret = partition(vms, begin, end);
+				quickSort(vms,begin,ret-1);
+				quickSort(vms,ret+1,end);
+			}
+	}
+
 	//输出每日信息
 	void coutDayMsg(int _day_id)
 	{
@@ -648,13 +792,18 @@ public:
 		if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
 		{
 			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
-			for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
+			for(int i=0 ; i<day_ser_select.size(); i++)
 			{
-				//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				//型号及其对应购买数量
-				cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
-
+				if(own_sers.pur_sers.at(_day_id).find(day_ser_select.at(i).server_type) != own_sers.pur_sers.at(_day_id).end())
+					cout << "(" << day_ser_select.at(i).server_type << ", " << own_sers.pur_sers.at(_day_id).at(day_ser_select.at(i).server_type).num << ")\n";
 			}
+			// for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
+			// {
+			// 	//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
+			// 	//型号及其对应购买数量
+			// 	cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
+			// }
 		}
 		else
 		{
@@ -737,6 +886,7 @@ public:
 		{
 			iter->coutUsage();
 		}
+		coutAllCosts();
 	}
 
 	void coutAllCosts()
@@ -756,15 +906,14 @@ public:
 	}
 
 private:
-	DataHandling *data_hand;
+	
 	AllServers own_sers;  //拥有的所有服务器              
 	unordered_map<int, VM2Server> vms_ser;    //所有虚拟机及对应服务器  <id,对应服务器>
-	ServersData day_ser_select;    //当天选择的服务器类型
+	vector<ServersData> day_ser_select;    //当天选择的服务器类型
 	int max_cpu, max_mem;  //每天请求中最大cpu与最大mem
 	int all_day_num=0; //总天数
 	vector<MigrationMsg> mig_msgs_day;  //每天的迁移
 	int mig_num_day = 0; //迁移次数
-	unordered_map<int, OwnServer*> mig_sers; //迁移的服务器或者空闲的 之后就不往里面迁移了
 };
 
 
