@@ -65,7 +65,7 @@ public:
 	bool day_read_finished = false;     //是否读取完当天数据
 	bool read_all_finished = false;    //是否读取完所有天数据
     int day_tmp=0;
-    int deal_day_num = 0;
+    
     DataHandling(bool _debug=true)
     {
         debug = _debug;
