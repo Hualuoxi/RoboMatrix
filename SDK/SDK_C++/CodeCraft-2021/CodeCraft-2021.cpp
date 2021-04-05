@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 	int deal_day_id = 0;
 	//ofstream out_file("output.txt", ios::trunc);
 #ifdef DEBUG
-	data_handling->openFile("/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/training-1.txt");
+	data_handling->openFile("/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/training-2.txt");
 	ofstream out_CSV("sersUsage.csv", ios::trunc);
 	out_CSV << "_day_id" <<","<< "allMigNum" <<","
 			    << "mig_num_day"<<"," << "migByUsageNumDay"<<"," << "migByCpuMemDay"<<"," << "migByEnergyDay"<<","

@@ -369,25 +369,9 @@ public:
 
 		mig_msgs_day.clear();  //清除上一天数据
 		mig_num_day = migByUsageNumDay =  migByEnergyDay =  migByCpuMemDay = 0;
-		float del_rat = (float)(data_hand->requests_all->at(_day_id).del_req.size()) /(float)(data_hand->requests_all->at(_day_id).day_request.size());
-		// if(del_rat < 0.7f && !migMax)
-		// {
-		// 	migLowCPU2Mem(&mig_msgs_day, _day_id,0.10f);
-		// 	migration(&mig_msgs_day, _day_id);
-		// }
-		// else
-		// {
-			migration(&mig_msgs_day, _day_id);
-			migLowCPU2Mem(&mig_msgs_day, _day_id,0.1f);
-			
-		// }
-			// own_sers.sortbyEnergy();
-			// migrationByEnergy(&mig_msgs_day, _day_id);
-			// own_sers.sort();
-			// migration(&mig_msgs_day, _day_id);
-			// own_sers.sortbyUsageRat();
-			// migLowCPU2Mem(&mig_msgs_day, _day_id,1.13);
-			// own_sers.sort();
+		// float del_rat = (float)(data_hand->requests_all->at(_day_id).del_req.size()) /(float)(data_hand->requests_all->at(_day_id).day_request.size());
+		migration(&mig_msgs_day, _day_id);
+		migLowCPU2Mem(&mig_msgs_day, _day_id,0.1f);
 
 		
 		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
@@ -429,7 +413,7 @@ public:
 			addVm2Ser(vms_node_s.at(j), false, _day_id);
 		}
 
-		selectSer(dat_req, _day_id,0.8f);
+		selectSer(dat_req, _day_id,0.85f);
 
 		//将剩下的虚拟机放入服务器  先双后单
 		// own_sers.sortbyEnergy();
@@ -480,7 +464,7 @@ public:
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.75 || it->usage_mem < 0.75) //利用率低  0.8 timeout
+			if (it->usage_cpu < 0.8 || it->usage_mem < 0.8) //利用率低  0.8 timeout
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
@@ -1020,10 +1004,7 @@ public:
 		//判断使用中服务器中是否有空闲位置
 		for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
 		{
-			if(add_new_ser)
-				inset_success = it->insertVM(_vm2ser, _day_id);
-			else
-				inset_success = it->insertVMByBD(_vm2ser, _day_id,0.2);
+			inset_success = it->insertVMByBD(_vm2ser, _day_id,0.2);
 			if (inset_success)
 			{
 				_vm2ser->own_ser = &*it;
@@ -1031,8 +1012,23 @@ public:
 				break;
 			}
 		}
+		if(!inset_success)
+		{
+			for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
+			{
+				if(add_new_ser)
+					inset_success = it->insertVM(_vm2ser, _day_id);
+				else
+					break;
+				if (inset_success)
+				{
+					_vm2ser->own_ser = &*it;
+					_vm2ser->dealed = true;
+					break;
+				}
+			}
+		}
 		if (!add_new_ser) return;
-
 		if (!inset_success)  //没有成功加入虚拟机  空间不足  申请新的服务器
 		{
 			bool inset_success2 = false;
