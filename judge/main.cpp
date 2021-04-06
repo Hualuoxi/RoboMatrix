@@ -1,4 +1,3 @@
-
 #include <utility>
 #include <string>
 #include <map>
@@ -199,6 +198,7 @@ void runJudger(std::string inputFile, std::string outputFile) {
 		int n;
 		infile >> n;
 		infile.ignore();
+		std::cout <<"infile\n";
 		while (n--) {
 			infile.ignore();
 			getline(infile, tmp_str);
@@ -248,7 +248,7 @@ void runJudger(std::string inputFile, std::string outputFile) {
 
 int main() {
 	std::cout << "main: " << '\n';
-	runJudger("training-1.txt", "output.txt");
+	runJudger("test.txt", "output.txt");
 	
 	return 0;
 }

@@ -16,49 +16,51 @@ int main(int argc, char **argv)
 	// data_handling->openFile("training-1.txt");
 	Strategy *strategy = new Strategy(data_handling);
 	int deal_day_id = 0;
-	//ofstream out_file("output.txt", ios::trunc);
-	pthread_t tids;
-	int ret = pthread_create(&tids, NULL, read_Req, (void*)data_handling);
-	if(0 != ret)
-		cout << "pthread_create error: error_code=" << ret << endl;
+	// ofstream out_file("output.txt", ios::trunc);
+	// pthread_t tids;
+	// int ret = pthread_create(&tids, NULL, read_Req, (void*)data_handling);
+	// if(0 != ret)
+	// 	cout << "pthread_create error: error_code=" << ret << endl;
 
-	//读取所有数据
-	while(true)
-	{
-		mut.lock();
-		if(data_handling->readed_kday_reqs &&
-		((data_handling->day_tmp-1) > deal_day_id || (((data_handling->day_tmp-1) == deal_day_id) && data_handling->day_read_finished)))
-		{
-			mut.unlock();
-			strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
-			strategy->coutDayMsg(deal_day_id);
-			//strategy->cout2File(out_file,deal_day_id);
-			deal_day_id++;
-		}
-		mut.unlock();
+	// // //读取所有数据
+	// while(true)
+	// {
+	// 	mut.lock();
+	// 	if(data_handling->readed_kday_reqs &&
+	// 	((data_handling->day_tmp-1) > deal_day_id || (((data_handling->day_tmp-1) == deal_day_id) && data_handling->day_read_finished)))
+	// 	{
+	// 		mut.unlock();
+	// 		strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
+	// 		strategy->coutDayMsg(deal_day_id);
+	// 		//strategy->cout2File(out_file,deal_day_id);
+	// 		deal_day_id++;
+	// 	}
+	// 	mut.unlock();
 
-
-		mut.lock();
-		if (deal_day_id && deal_day_id == data_handling->day_num  )   //处理完所有数据 
-			break;
-		mut.unlock();
-	}
+	// 	mut.lock();
+	// 	if (deal_day_id && deal_day_id == data_handling->day_num  )   //处理完所有数据 
+	// 		break;
+	// 	mut.unlock();
+	// }
 	//strategy->coutAllCosts();
 
-	// string str_line;
-	// while(getline(cin,str_line))
-	// {
-	// 	//cout<<"str_line.length: "<< str_line.length()<<endl;
-	// 	if(str_line.length() > 0)
-	// 		if(data_handling->dealLineData(str_line))
-	// 			break;
-	// }
-	// for (int i = 0; i < data_handling->requests_all->size(); i++)
-	// {
-	// 	strategy->dealDayReq(&data_handling->requests_all->at(i), i);
-	// 	strategy->coutDayMsg(i);
-	// }
-	// strategy->coutAllCosts();
+	 string str_line;
+	while(getline(cin,str_line))
+	{
+		//cout<<"str_line.length: "<< str_line.length()<<endl;
+		if(str_line.length() > 0)
+			if(data_handling->dealLineData(str_line))
+				break;
+	}
+	for (int i = 0; i < data_handling->requests_all->size(); i++)
+	{
+		strategy->dealDayReq(&data_handling->requests_all->at(i), i);
+		
+		//strategy->coutDayMsg(i);
+		//strategy->coutAllSersUsage();
+		//strategy->cout2File(out_file,i);
+	}
+	strategy->coutAllCosts();
 	
 	return 0;
 }

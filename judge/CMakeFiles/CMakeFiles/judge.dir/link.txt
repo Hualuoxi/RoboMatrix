@@ -1,0 +1,1 @@
+/usr/bin/c++    -O3 -Wall -std=c++11   CMakeFiles/judge.dir/main.cpp.o  -o ../bin/judge -rdynamic 
