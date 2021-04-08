@@ -413,7 +413,7 @@ public:
 		{
 			addVm2Ser(vms_node_s.at(j), false, _day_id);
 		}
-		// selectSer(dat_req, _day_id,1.1f);
+		selectSer(dat_req, _day_id,0.8f);
 
 		//将剩下的虚拟机放入服务器  先双后单
 		// own_sers.sortbyEnergy();
@@ -1076,9 +1076,9 @@ public:
 		//判断使用中服务器中是否有空闲位置
 		for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
 		{
-			if(add_new_ser)
-				inset_success = it->insertVM(_vm2ser, _day_id);
-			else
+			// if(add_new_ser)
+			// 	inset_success = it->insertVM(_vm2ser, _day_id);
+			// else
 				inset_success = it->insertVMByBD(_vm2ser, _day_id,0.2);
 			if (inset_success)
 			{
@@ -1087,27 +1087,27 @@ public:
 				break;
 			}
 		}
-		// if(!inset_success)
-		// {
-		// 	for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
-		// 	{
-		// 		if(add_new_ser)
-		// 			inset_success = it->insertVM(_vm2ser, _day_id);
-		// 		else
-		// 			break;
-		// 		if (inset_success)
-		// 		{
-		// 			_vm2ser->own_ser = &*it;
-		// 			_vm2ser->dealed = true;
-		// 			break;
-		// 		}
-		// 	}
-		// }
+		if(!inset_success)
+		{
+			for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
+			{
+				if(add_new_ser)
+					inset_success = it->insertVM(_vm2ser, _day_id);
+				else
+					break;
+				if (inset_success)
+				{
+					_vm2ser->own_ser = &*it;
+					_vm2ser->dealed = true;
+					break;
+				}
+			}
+		}
 		if (!add_new_ser) return;
 		if (!inset_success)  //没有成功加入虚拟机  空间不足  申请新的服务器
 		{
 			bool inset_success2 = false;
-			selectSerByVM(*_vm2ser,_day_id);
+			// selectSerByVM(*_vm2ser,_day_id);
 			own_sers.addSer(day_ser_select, _day_id);  //添加服务器
 			inset_success2 = own_sers.using_ser.back().insertVM(_vm2ser, _day_id);
 			if (inset_success2)
@@ -1362,7 +1362,7 @@ public:
 	}
 	void coutAllCosts()
 	{
-		float all_costs = 0, hard_cost = 0;
+		int all_costs = 0, hard_cost = 0;
 		for (auto iter = own_sers.using_ser.begin(); iter != own_sers.using_ser.end(); iter++)
 		{
 			iter->calCosts(all_day_num);
