@@ -1,0 +1,44 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/CodeCraft-2021.cpp
+iostream
+-
+data_handling.hpp
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
+strategy.hpp
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/strategy.hpp
+thread
+-
+mutex
+-
+
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
+unordered_map
+-
+stdlib.h
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/stdlib.h
+vector
+-
+fstream
+-
+sstream
+-
+iostream
+-
+
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/strategy.hpp
+data_handling.hpp
+/home/xu/Desktop/RoboMatrix-second_round/SDK/SDK_C++/CodeCraft-2021/data_handling.hpp
+list
+-
+cmath
+-
+time.h
+-
+
