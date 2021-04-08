@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 	int deal_day_id = 0;
 	//ofstream out_file("output.txt", ios::trunc);
 #ifdef DEBUG
-	data_handling->openFile("/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/training-2.txt");
+	data_handling->openFile("/home/hualuoxi/Desktop/CodeCraftRe/RoboMatrix/training-1.txt");
 	ofstream out_CSV("sersUsage.csv", ios::trunc);
 	out_CSV << "_day_id" <<","<< "allMigNum" <<","
 			    << "mig_num_day"<<"," << "migByUsageNumDay"<<"," << "migByCpuMemDay"<<"," << "migByEnergyDay"<<","
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 			strategy->dealDayReq(&data_handling->requests_all->at(deal_day_id), deal_day_id);
 			#ifdef DEBUG
 				// strategy->coutMsg2CSV(out_CSV,deal_day_id);
-				// if(deal_day_id == 411)
+				// if(deal_day_id <= 100)
 				// 	strategy->coutDayUsage2CSV(out_CSV ,deal_day_id);
 				//strategy->coutAllSersUsage();
 			#else
