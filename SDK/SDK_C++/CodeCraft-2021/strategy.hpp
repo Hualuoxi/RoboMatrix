@@ -346,16 +346,16 @@ struct AllServers
 		{
 			pur_sers[_day_id].day = _day_id;
 		}
-		else if (pur_sers[_day_id].pur_num.find(_ser_dat.server_type) == pur_sers[_day_id].pur_num.end())  //当天没有该服务器的数据
+		if (pur_sers[_day_id].pur_num.find(_ser_dat.server_type) == pur_sers[_day_id].pur_num.end())  //当天没有该服务器的数据
 		{
 			pur_sers[_day_id].pur_num[_ser_dat.server_type] = 1;
-			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] = &ser_state;
+			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] =  &using_ser.back();
 			per_order_day.push_back(_ser_dat.server_type);
 		}
 		else //该服务器num+1
 		{
 			pur_sers[_day_id].pur_num[_ser_dat.server_type] += 1;
-			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] = &ser_state;
+			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] =  &using_ser.back();
 		}
 	}
 
@@ -366,8 +366,9 @@ struct AllServers
 		{
 			for(auto it = pur_sers.at(_day_id).pur_ser[per_order_day.at(i)].begin(); it != pur_sers.at(_day_id).pur_ser[per_order_day.at(i)].end(); it++)
 			{
+				//it->second->id = day_start_id;
+				pur_sers.at(_day_id).pur_ser[per_order_day.at(i)].at(it->first)->id = day_start_id;
 				day_start_id ++;
-				it->second->id = day_start_id;
 			}
 		}
 	}
