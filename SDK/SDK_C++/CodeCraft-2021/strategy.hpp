@@ -103,7 +103,7 @@ struct OwnServer
 				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 				vms.push_back(_vm);
-				updateBalDeg();
+				
 				return true;
 			}
 			else
@@ -120,7 +120,7 @@ struct OwnServer
 				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 				vms.push_back(_vm);
-				updateBalDeg();
+				
 				return true;
 			}
 			else if (cpu_B_left >= _vm->vm.cpu && memory_B_left >= _vm->vm.memory)
@@ -132,7 +132,7 @@ struct OwnServer
 				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 				vms.push_back(_vm);
-				updateBalDeg();
+			
 				return true;
 			}
 			else
@@ -149,7 +149,7 @@ struct OwnServer
 			    cpu_B_left >= _vm->vm.cpu / 2. && 
 				memory_A_left >= _vm->vm.memory / 2. && 
 				memory_B_left >= _vm->vm.memory / 2. &&
-				(fabs(balDeg_All - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
+				(abs(balDeg_All - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
 				{
 					cpu_A_left -= _vm->vm.cpu / 2.;       usage_cpu_A = 1- cpu_A_left/(ser.cpu/2);
 					memory_A_left -= _vm->vm.memory / 2.; usage_mem_A =  1- memory_A_left/(ser.memory/2);
@@ -159,7 +159,7 @@ struct OwnServer
 					usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 					vms.push_back(_vm);
-					updateBalDeg();
+					
 					return true;	
 				}
 			else
@@ -168,29 +168,28 @@ struct OwnServer
 		else  // 单节点
 		{
 			if (cpu_A_left >= _vm->vm.cpu  &&  memory_A_left >= _vm->vm.memory &&
-				(fabs(balDeg_A - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
+				(abs(balDeg_A - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
 			{
 				_vm->a_b = 0;
-				cpu_A_left -= _vm->vm.cpu / 2.;       usage_cpu_A = 1- cpu_A_left/(ser.cpu/2);
-				memory_A_left -= _vm->vm.memory / 2.; usage_mem_A =  1- memory_A_left/(ser.memory/2);
+				cpu_A_left -= _vm->vm.cpu;        usage_cpu_A = 1- cpu_A_left/(ser.cpu/2);
+				memory_A_left -= _vm->vm.memory;  usage_mem_A =  1- memory_A_left/(ser.memory/2);
 				usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
 				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 				vms.push_back(_vm);
-				updateBalDeg();
+				
 				return true;
 			}
 			else if (cpu_B_left >= _vm->vm.cpu && memory_B_left >= _vm->vm.memory &&
-			 (fabs(balDeg_B - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
+			 (abs(balDeg_B - (_vm->vm.cpu / _vm->vm.memory)) <= BD_coe))
 			{
 				_vm->a_b = 1;
-				cpu_B_left -= _vm->vm.cpu / 2.;		  usage_cpu_B = 1- cpu_B_left/(ser.cpu/2);
-				memory_B_left -= _vm->vm.memory / 2.; usage_mem_B =  1- memory_B_left/(ser.memory/2);
+				cpu_B_left -= _vm->vm.cpu;         usage_cpu_B = 1- cpu_B_left/(ser.cpu/2);
+				memory_B_left -= _vm->vm.memory;   usage_mem_B =  1- memory_B_left/(ser.memory/2);
 				usage_cpu = 1 - (cpu_A_left + cpu_B_left) / ser.cpu;
 				usage_mem = 1 - (memory_A_left + memory_B_left) / ser.memory;
 
 				vms.push_back(_vm);
-				updateBalDeg();
 				return true;
 			}
 			else
@@ -281,11 +280,14 @@ struct OwnServer
 	}
 };
 
-//购买单个服务器的数据
+//购买服务器的数据
 struct PurSerData
 {
-	string type;   //类型
-	int num;     //数量
+	int day;   //购买的天次
+	//<类型, 数量>
+	unordered_map<string, int> pur_num;
+	//<类型,<id, 指向的服务器>>
+	unordered_map<string,unordered_map<int, OwnServer *>> pur_ser;
 };
 
 //删除请求
@@ -326,10 +328,12 @@ struct AllServers
 	list<OwnServer> using_ser;
 	//迁移用服务器
 	OwnServer *mig_ser;  //id = 0
-	//<天数,<型号 数量> >  天数从0开始
-	unordered_map<int, unordered_map<string, PurSerData>> pur_sers;
-
+	//<天数,  >  天数从0开始
+	unordered_map<int, PurSerData> pur_sers;
+	vector<string> per_order_day;//每天购买服务器的顺序
 	unsigned int num = 1;   //计数  每次添加服务器就加1 
+	
+	int day_start_id ;   //当天起始服务器id
 
 	//添加服务器 _ser_dat：类型  day_id：第多少天
 	void addSer(ServersData _ser_dat, int _day_id)
@@ -340,19 +344,34 @@ struct AllServers
 
 		if (pur_sers.find(_day_id) == pur_sers.end())  //如果没有当天数据
 		{
-			pur_sers[_day_id][_ser_dat.server_type].type = _ser_dat.server_type;
-			pur_sers[_day_id][_ser_dat.server_type].num = 1;
+			pur_sers[_day_id].day = _day_id;
 		}
-		else if (pur_sers[_day_id].find(_ser_dat.server_type) == pur_sers[_day_id].end())  //当天没有该服务器的数据
+		else if (pur_sers[_day_id].pur_num.find(_ser_dat.server_type) == pur_sers[_day_id].pur_num.end())  //当天没有该服务器的数据
 		{
-			pur_sers[_day_id][_ser_dat.server_type].type = _ser_dat.server_type;
-			pur_sers[_day_id][_ser_dat.server_type].num += 1;
+			pur_sers[_day_id].pur_num[_ser_dat.server_type] = 1;
+			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] = &ser_state;
+			per_order_day.push_back(_ser_dat.server_type);
 		}
 		else //该服务器num+1
 		{
-			pur_sers[_day_id][_ser_dat.server_type].num += 1;
+			pur_sers[_day_id].pur_num[_ser_dat.server_type] += 1;
+			pur_sers[_day_id].pur_ser[_ser_dat.server_type][pur_sers[_day_id].pur_num[_ser_dat.server_type]] = &ser_state;
 		}
 	}
+
+	//重排当天购买的服务器id
+	void resetSersId(int _day_id)
+	{
+		for(int i=0 ; i<per_order_day.size() ; i++)
+		{
+			for(auto it = pur_sers.at(_day_id).pur_ser[per_order_day.at(i)].begin(); it != pur_sers.at(_day_id).pur_ser[per_order_day.at(i)].end(); it++)
+			{
+				day_start_id ++;
+				it->second->id = day_start_id;
+			}
+		}
+	}
+
 	//排序
 	void sort()
 	{
@@ -387,13 +406,15 @@ public:
 			findMaxCostSer();
 		}
 		mig_msgs_day.clear();  //清除上一天数据
+		own_sers.per_order_day.clear();
+		own_sers.day_start_id = own_sers.num;
 		mig_num_day = migByUsageNumDay =  migByEnergyDay =  migByCpuMemDay = 0;
 		// float del_rat = (float)(data_hand->requests_all->at(_day_id).del_req.size()) /(float)(data_hand->requests_all->at(_day_id).day_request.size());
 		migration(&mig_msgs_day, _day_id);
 		migLowCPU2Mem(&mig_msgs_day, _day_id);
 
 		
-		vector<VM2Server*> vms_node_s, vms_node_d;  //单节点  双节点
+		vector<VM2Server*> vms_node_s, vms_node_d,vms_node;  //单节点  双节点
 		//先将请求数据转换  转换为VM2Server格式
 		for (int i = 0; i < dat_req->add_req.size(); i++)
 		{
@@ -406,7 +427,7 @@ public:
 				vms_node_d.push_back(&vms_ser[dat_req->add_req.at(i).id]);
 			else
 				vms_node_s.push_back(&vms_ser[dat_req->add_req.at(i).id]);
-
+			vms_node.push_back(&vms_ser[dat_req->add_req.at(i).id]);
 		}
 
 		//删除的消息转化为 DelMsg 格式
@@ -421,6 +442,8 @@ public:
 		//排序
 		quickSort(vms_node_d,0,vms_node_d.size()-1);
 		quickSort(vms_node_s,0,vms_node_s.size()-1);
+		quickSort(vms_node,0,vms_node.size()-1);
+
 		//先将虚拟机放入已有服务器  先双后单
 		// own_sers.sortbyEnergy();
 		for (int j = 0; j < vms_node_d.size(); j++)
@@ -431,21 +454,36 @@ public:
 		{
 			addVm2Ser(vms_node_s.at(j), false, _day_id);
 		}
-		selectSer(dat_req, _day_id,1.1f);
 
-		//将剩下的虚拟机放入服务器  先双后单
+		// selectSer(dat_req, _day_id,1.1f);
+		// //将剩下的虚拟机放入服务器  先双后单
 		// own_sers.sortbyEnergy();
+		// for (int j = 0; j < vms_node_d.size(); j++)
+		// {
+		// 	if (vms_node_d.at(j)->dealed == false)
+		// 		addVm2Ser(vms_node_d.at(j), true, _day_id);
+		// }
+		// for (int j = 0; j < vms_node_s.size(); j++)
+		// {
+		// 	if (vms_node_s.at(j)->dealed == false)
+		// 		addVm2Ser(vms_node_s.at(j), true, _day_id);
+		// }
+
 		for (int j = 0; j < vms_node_d.size(); j++)
 		{
 			if (vms_node_d.at(j)->dealed == false)
-				addVm2Ser(vms_node_d.at(j), true, _day_id);
+				addVm2selectSers(&vms_node,vms_node_d.at(j),_day_id);
 		}
 		for (int j = 0; j < vms_node_s.size(); j++)
 		{
 			if (vms_node_s.at(j)->dealed == false)
-				addVm2Ser(vms_node_s.at(j), true, _day_id);
+				addVm2selectSers(&vms_node,vms_node_s.at(j), _day_id);
 		}
-		// //处理剩下的删除请求
+
+		//重新对服务器编号
+		own_sers.resetSersId(_day_id);
+
+		//处理剩下的删除请求
 		for (auto it = del_msg_day.begin(); it != del_msg_day.end(); ++it)
 		{
 			if (del_msg_day.at(it->first).dealed == false)
@@ -483,7 +521,7 @@ public:
 				mig_sers[it->id] = &*it;
 				continue; //利用率为0就不考虑了
 			}
-			if (it->usage_cpu < 0.75 || it->usage_mem < 0.75) //利用率低  0.8 timeout
+			if (it->usage_cpu < 0.7 || it->usage_mem < 0.7) //利用率低  0.8 timeout
 			{
 				mig_sers[it->id] = &*it;
 				vector<VM2Server*> vms_remove;
@@ -1109,7 +1147,8 @@ public:
 			int it_cost = _num * (it->second.hardware_cost  +  (all_day_num - _day_id) * it->second.energy_day);
 			// int it_cost = _num * it->second.hardware_cost;
 			//申请的型号需要满足cpu与mem都大于当前申请的最大值
-
+			if (data_hand->servers.at(it->first).cpu >= max_cpu && data_hand->servers.at(it->first).memory >= max_mem)
+			{
 				if (cost == 0)  //未初始化
 				{
 					cost = it_cost;
@@ -1125,12 +1164,82 @@ public:
 						num = _num;
 					}
 				}
-			
+			}
 		}
 		day_ser_select = data_hand->servers.at(_type);
 	}
+	
+	//根据已经排过序的虚拟机选择服务器
+	ServersData selectSerBySort(vector<VM2Server*> *vms,VM2Server* select_vm,int _day_id,float rat)
+	{
+		float vm_max_cpu =0, vm_max_mem=0;
 
-		//根据当前虚拟机选择性价比最高的服务器
+		for (int i = 0; i < vms->size(); i++)
+		{
+			if (vms->at(i)->dealed == false)
+			{
+				if (vms->at(i)->vm.node == 0) //单节点cpu memory 按两倍算
+				{
+					if (vm_max_cpu < 2 * vms->at(i)->vm.cpu)
+						vm_max_cpu = 2 * vms->at(i)->vm.cpu;
+					if (vm_max_mem < 2 * vms->at(i)->vm.memory)
+						vm_max_mem = 2 * vms->at(i)->vm.memory;
+				}
+				else
+				{
+					if (vm_max_cpu < vms->at(i)->vm.cpu)
+						vm_max_cpu = vms->at(i)->vm.cpu;
+					if (vm_max_mem <vms->at(i)->vm.memory)
+						vm_max_mem = vms->at(i)->vm.memory;
+				}
+			}
+		}
+
+		float cpu_sum = 0, mem_sum = 0;
+		int num = 0, cost = 0;
+		string _type;
+		for(int i=0 ; i<vms->size() ;i++)
+		{
+			if(vms->at(i)->dealed == false)
+			{
+				cpu_sum += vms->at(i)->vm.cpu;
+				mem_sum += vms->at(i)->vm.memory;
+			}
+		}
+
+		//根据未处理的虚拟机每日成本最小查找
+		for (auto it = data_hand->servers.begin(); it != data_hand->servers.end(); ++it)
+		{
+			int c_num = ceil(cpu_sum / it->second.cpu);  //向上取整
+			int m_num = ceil(mem_sum / it->second.memory);
+			int _num = (c_num > m_num) ? c_num : m_num; 
+			_num = ceil(_num * rat);
+			//数量 * 硬件成本加剩余天数的使用成本
+			int it_cost = _num * (it->second.hardware_cost  +  (all_day_num - _day_id) * it->second.energy_day);
+			//申请的型号需要满足cpu与mem都大于当前申请的最大值
+			if (data_hand->servers.at(it->first).cpu >= vm_max_cpu && data_hand->servers.at(it->first).memory >= vm_max_mem)
+			{
+				if (cost == 0)  //未初始化
+				{
+					cost = it_cost;
+					_type = it->second.server_type;
+					num = _num;
+				}
+				else if (cost > it_cost)
+				{
+					if (it->second.cpu >= max_cpu && it->second.memory >= max_mem)
+					{
+						cost = it_cost;
+						_type = it->second.server_type;
+						num = _num;
+					}
+				}
+			}
+		}
+		return data_hand->servers.at(_type);
+	}
+
+	//根据当前虚拟机选择性价比最高的服务器
 	void selectSerByVM(VM2Server _vm2ser, int _day_id)
 	{
 		float costPerformance =0;
@@ -1178,10 +1287,10 @@ public:
 		//判断使用中服务器中是否有空闲位置
 		for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
 		{
-			//if(add_new_ser)
+			//  if(add_new_ser)
 				inset_success = it->insertVM(_vm2ser, _day_id);
-			// else
-			// 	inset_success = it->insertVMByBD(_vm2ser, _day_id,0.2);
+			//  else
+			//   	inset_success = it->insertVMByBD(_vm2ser, _day_id,0.2);
 			if (inset_success)
 			{
 				_vm2ser->own_ser = &*it;
@@ -1220,43 +1329,45 @@ public:
 			else
 			{
 				cout << " insertVM error! " << endl;
+				exit(0);
 			}
 		}
 	}
 
-
-
-	//将虚拟机添加到新增服务器
-	bool addVmsDaySers(VM2Server *_vm2ser, vector<OwnServer> *_sers_day_add, ServersData *_ser_select, int _day_id)
+	//将虚拟机添加到根据剩余数据选择的服务器
+	void addVm2selectSers(vector<VM2Server*> *vms,VM2Server *_vm2ser, int _day_id)
 	{
 		bool inset_success = false;
-
 		//判断服务器中是否有空闲位置
-		for (auto it = _sers_day_add->begin(); it != _sers_day_add->end(); it++)
+		for (auto it = own_sers.using_ser.begin(); it != own_sers.using_ser.end(); it++)
 		{
 			inset_success = it->insertVM(_vm2ser, _day_id);
 			if (inset_success)
 			{
 				_vm2ser->own_ser = &*it;
 				_vm2ser->dealed = true;
-				return true;
+				break;
 			}
 		}
 
 		if (!inset_success)  //没有成功加入虚拟机  空间不足  申请新的服务器
 		{
 			bool inset_success2 = false;
-			OwnServer ser_state(0, *_ser_select);
-			_sers_day_add->push_back(ser_state);
-			inset_success2 = _sers_day_add->back().insertVM(_vm2ser, _day_id);
+			ServersData _ser_select;
+			_ser_select = selectSerBySort(vms,_vm2ser,_day_id,1.2);
+			own_sers.addSer(_ser_select,_day_id);
+
+			inset_success2 = own_sers.using_ser.back().insertVM(_vm2ser, _day_id);
 			if (inset_success2)
 			{
-				_vm2ser->own_ser = &_sers_day_add->back();
+				_vm2ser->own_ser = & own_sers.using_ser.back();
 				_vm2ser->dealed = true;
-				return true;
 			}
 			else
-				return false;
+			{
+				cout << " insertVM error! " << endl;
+				exit(0);
+			}
 		}
 	}
 
@@ -1375,25 +1486,23 @@ public:
 	{
 		if(_day_id == 0 )
 		{
-			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size()+1 << ")\n";
+			cout << "(purchase, " << own_sers.pur_sers.at(_day_id).pur_num.size()+1 << ")\n";
 			cout << "(" << own_sers.mig_ser->ser.server_type << ", " << 1 << ")\n";
-			for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
+			for(int i=0; i<own_sers.per_order_day.size();i++)
 			{
-				//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				//型号及其对应购买数量
-				cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
+				cout << "("<<own_sers.per_order_day.at(i)<< ", "<< own_sers.pur_sers.at(_day_id).pur_num[ own_sers.per_order_day.at(i)] <<")\n";
 			}
 		}
 		else{
 			//购买型号的数量   bug  哈希表无序
-			if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
+			if (own_sers.per_order_day.size() != 0)  //如果当天购买不为空
 			{
-				cout << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
-				for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
+				cout << "(purchase, " << own_sers.pur_sers.at(_day_id).pur_num.size() << ")\n";
+				for(int i=0; i<own_sers.per_order_day.size();i++)
 				{
-					//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 					//型号及其对应购买数量
-					cout << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
+					cout << "("<<own_sers.per_order_day.at(i)<< ", "<< own_sers.pur_sers.at(_day_id).pur_num[ own_sers.per_order_day.at(i)] <<")\n";
 				}
 			}
 			else
@@ -1430,21 +1539,31 @@ public:
 
 	void cout2File(ofstream &out_file, int _day_id)
 	{
-		//购买型号的数量
-		if (own_sers.pur_sers.find(_day_id) != own_sers.pur_sers.end())  //如果当天购买不为空
+		if(_day_id == 0 )
 		{
-			out_file << "(purchase, " << own_sers.pur_sers.at(_day_id).size() << ")\n";
-			for (auto it = own_sers.pur_sers.at(_day_id).begin(); it != own_sers.pur_sers.at(_day_id).end(); ++it)
+			out_file << "(purchase, " << own_sers.pur_sers.at(_day_id).pur_num.size()+1 << ")\n";
+			out_file << "(" << own_sers.mig_ser->ser.server_type << ", " << 1 << ")\n";
+			for(int i=0; i<own_sers.per_order_day.size();i++)
 			{
-				//if (max_cpu_ser.cpu < _data_hand->servers.at(it->first).cpu)
 				//型号及其对应购买数量
-				out_file << "(" << own_sers.pur_sers.at(_day_id).at(it->first).type << ", " << own_sers.pur_sers.at(_day_id).at(it->first).num << ")\n";
-
+				out_file << "("<<own_sers.per_order_day.at(i)<< ", "<< own_sers.pur_sers.at(_day_id).pur_num[ own_sers.per_order_day.at(i)] <<")\n";
 			}
 		}
-		else
-		{
-			out_file << "(purchase, 0)\n";
+		else{
+			//购买型号的数量   bug  哈希表无序
+			if (own_sers.per_order_day.size() != 0)  //如果当天购买不为空
+			{
+				out_file << "(purchase, " << own_sers.pur_sers.at(_day_id).pur_num.size() << ")\n";
+				for(int i=0; i<own_sers.per_order_day.size();i++)
+				{
+					//型号及其对应购买数量
+					out_file << "("<<own_sers.per_order_day.at(i)<< ", "<< own_sers.pur_sers.at(_day_id).pur_num[ own_sers.per_order_day.at(i)] <<")\n";
+				}
+			}
+			else
+			{
+				out_file << "(purchase, 0)\n";
+			}
 		}
 		//迁移数量
 		out_file << "(migration, " << mig_msgs_day.size() << ")\n";
@@ -1541,6 +1660,7 @@ private:
 	int mig_num_day = 0,migByUsageNumDay = 0, migByEnergyDay = 0, migByCpuMemDay=0; //迁移次数
 	int  migByUsageNum = 0, migByEnergy = 0, migByCpuMem=0;
 	bool migMax =false;
+
 };
 
 
